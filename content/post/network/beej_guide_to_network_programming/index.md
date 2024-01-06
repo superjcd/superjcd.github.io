@@ -8,7 +8,7 @@ tags:
 weight: 1       # You can add weight to some posts to override the default sorting (date descending)
 ---
 # 网络编程入门
-同时也算是[beej‘s guide to network programming](https://beej.us/guide/bgnet/html/split/index.html)， 
+同时也算是[beej‘s guide to network programming](https://beej.us/guide/bgnet/html/split/index.html)的阅读笔记， 
 当然这里不一定会按章原书的章节原封不动的来， 会穿插一些个人见解（囿于水平有限， 无法保证都是对的）
 
 ## 前置知识
@@ -45,9 +45,23 @@ weight: 1       # You can add weight to some posts to override the default sorti
 
 
 ### ipv4和ipv6
+ipv4地址， 诸如： 192.10.2.111, 就是4字节， 32位的地址，也就是存着2的32次方的可能性， 大概最多能表示40亿个地址。  
+在互联网刚刚诞生的时候， 40亿当然是个天文数字， 但是在人均都有手机以及各种可以联网的穿戴设备的今天， 40亿有点捉襟见肘了。  
+ipv6则是16个字节， 也就是128位， 意味着能表示2的128种地址， 所以很显然， 即便是全宇宙的生物体都有一台能连接互联网的手机， 应该也是够够用了。  
+ipv6的地址：  2001:0db8:c9d2:aee5:73e3:934a:a5ae:9551  
+上面每个冒号分割的都是用16进制表示的2个字节， 也就是16位(16 * 8刚好就是128)
+在ipv6在表示上， 为了更简便， 可以压缩每个冒号分割中靠前面的0， 比如上面的0db8这部分可以压缩成db8。  
+类似0000:0000:0000:0000:0000:0000:0000:0001这样的地址可以直接被压缩位::1,这个就是相当于ipv4中locahost， 即127.0.0.1 。
+另外ipv4是可以转化位ipv6， 转化规则并没有我们想象中的需要牵涉到进制的转化，而是直接在ipv4地址的基础上加上前缀， 比如地址192.0.2.33可以转化位 ::ffff:192.0.2.33
 ### subnets子网
+通常我们会把ip地址拆分成所谓network部分和host部分，假设我们的netmask是255.255.255.0
+，然后我们的ip地址是192.0.2.33， 那么这个地址的network部分就是192.0.2.0， 这个值就是子掩码和ip地址执行逻辑与的结果。   
+一种更为灵活的表示方法是将ip地址直接表示为192.0.2.33/24 （也就是netmask是255.255.255.0）， ipv6也是同理
 ### 字节顺序
-
+字节序有两种， 一种是大端（Big-Endian）另外一种是小端（Little-Endian），大端字节序通常会把最有效位存储在较低的地址， 小端则相反。  
+比如大端会把一个10进制数字100中的1， 先存储在内存的较低的位置。  
+由于网络基本上是大端存储的， 而很多操作系统又是小端的， 所以在信息传输的过程中自然会涉及到字节序的转换。  
+比如函数htons()， 这个函数就是用来把host的short格式的数据转化成network的short格式
 
 
 ## 应用1-查找ip地址
@@ -162,3 +176,63 @@ struct in_addr {
 
 4. 这里我们进入了一个for循环， 前面我们有提及addrinfo本质上是一个链表，它有一个指向下一个addrinfo的指针， 我们不断循环获取addr地址， 然后用这个地址去获取ip地址的字符串（inet_ntop中的ntop实际为 network to presentation）
 
+
+
+## 应用2-使用scoket进行网络传输
+使用socket进行通行， 通常会牵涉到两个角色：
+ - 接受信号的， 我们称之为server服务端
+ - 发送信号的， 我们称之为client客户端
+server既然是接受信号的， 涉及的流程通常会有listen（监听）和recv（接受数据， 如果是udp的话就是recvto）
+client主要是发送信号的， 所以他通常会涉及connect（链接）和send（传送， 如果是udp的话就是sendto）
+上面所有的操作首先是需要围绕调用socket函数返回的套接字描述符(socket descriptor)展开的
+
+### 代码
+```c
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
+#define MYPORT "3490"  // the port users will be connecting to
+#define BACKLOG 10     // how many pending connections queue will hold
+
+int main(void)
+{
+    struct sockaddr_storage their_addr;    
+    socklen_t addr_size;
+    struct addrinfo hints, *res;
+    int sockfd, new_fd;
+
+    // !! don't forget your error checking for these calls !!
+
+    // first, load up address structs with getaddrinfo():
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;  // use IPv4 or IPv6, whichever
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;     //  1 
+
+    getaddrinfo(NULL, MYPORT, &hints, &res);   
+
+    // make a socket, bind it, and listen on it:
+
+    sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol); // 2
+    bind(sockfd, res->ai_addr, res->ai_addrlen);     // 3
+    listen(sockfd, BACKLOG);                         // 4
+
+    // now accept an incoming connection:
+
+    addr_size = sizeof their_addr; 、、 5
+    new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size); //5 
+
+    // ready to communicate on socket descriptor new_fd!
+        .
+        .
+        .
+```
+### 说明
+1. 使用AI_PASSIVE作为我们ai_flags就是告诉程序我要绑定本机的ip， 这也就是是为什getaddrinfo的第一个参数可以是空的， 因为我是server，所以不需要特定的server name，
+2. 这里调用了socket函数， 返回一个套接字描述符， socket的三个参数， ai_family就是前面提到的ipv4或者ipv6， sockettype是前面提到的SOCKETSTREAM（tcp协议）或者SOCKETDGRAM（udp协议）
+3. bind使用了socket返回的描述符号， 然后会bind到一个具体的port
+4. 然后server调用liste开启监听， BACKLOG是一个常量用来控制能同事监听的最大数量(其实就是限制了监听队列的大小)
+5. accept其实就是把客户端的connect给accept的意思，然后accept会返回一个全新的套接字描述符号， 这个新的描述符就是后续用来send 
