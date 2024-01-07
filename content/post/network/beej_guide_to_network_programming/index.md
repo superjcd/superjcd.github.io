@@ -236,3 +236,76 @@ int main(void)
 3. bind使用了socket返回的描述符号， 然后会bind到一个具体的port
 4. 然后server调用liste开启监听， BACKLOG是一个常量用来控制能同事监听的最大数量(其实就是限制了监听队列的大小)
 5. accept其实就是把客户端的connect给accept的意思，然后accept会返回一个全新的套接字描述符号， 这个新的描述符就是后续用来send 
+
+## 应用3 - 简单的server & client实现
+码的话直接参考：https://beej.us/guide/bgnet/html/split/client-server-background.html
+
+### server端
+整体的server的运行流程还是遵循了前面提到的几个关键点：  
+ -  geraddtrinfo获取ip地址信息
+ - socket 建立一个套接字链接返回socket descriptor
+ - bind  绑定特定port
+ - listen 监听
+ - accept 接受一个incomming connection
+ - send 通过socket发送信息
+
+不过这里为了同时处理更多的链接， 会用fork开启一个子进程：  
+```c
+    while(1) {  // main accept() loop
+        sin_size = sizeof their_addr;
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_fd == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(their_addr.ss_family,
+            get_in_addr((struct sockaddr *)&their_addr),
+            s, sizeof s);
+        printf("server: got connection from %s\n", s);
+
+        if (!fork()) { // this is the child process
+            close(sockfd); // child doesn't need the listener
+            if (send(new_fd, "Hello, world!", 13, 0) == -1)
+                perror("send");
+            close(new_fd);
+            exit(0);
+        }
+        close(new_fd);  // parent doesn't need this
+    }
+```
+
+> fork在成功开启子进程的时候， 返回值是0， 所以 !0 就是true; 但是这里没有fork失败的处理逻辑
+
+因为用到了子进程， 自然需要有子进程的垃圾回收
+```c
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
+```
+
+当主进程通过`sigaction`获取到了SIGCHLD这个信号的时候， 会触发函数sigchld_handler来进行GC：
+
+```c
+void sigchld_handler(int s)
+{
+    // waitpid() might overwrite errno, so we save and restore it:
+    int saved_errno = errno;
+
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+
+    errno = saved_errno;
+}
+```
+
+### client端
+client的代码会比较简单， 它的流程和server有少许不一样：
+- getaddrinfo， 不过作为client，我的第一个参数是需要指定server name的
+- socket
+- connect
+- recv， 和服务端需要使用accept返回的新的socket descriptor来发送信息， client直接用socket返回的desciptor就可以接受信息了
+That's it
