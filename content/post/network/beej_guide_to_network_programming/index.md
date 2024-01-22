@@ -21,7 +21,8 @@ weight: 1       # You can add weight to some posts to override the default sorti
 ### socket类型
 网络socket是有两种类型的：  
 - stream
-- dgram(DATAGRAM)
+- dgram(DATAGRAM)  
+
 前者使用的是TCP协议(Transmission Control Protocol), TCP协议在传输过程中是要一直保证链接的， 而且数据包是有序传递的(使用telnet就是顺序传输信息的)且会是完整传递；  
 相反地datagram使用的是UDP（User Datagram Protocol）， 数据不能保证是有序的， 甚至不能保证数据是完整的（当然相应的， udp的传输可以更快）。
 
