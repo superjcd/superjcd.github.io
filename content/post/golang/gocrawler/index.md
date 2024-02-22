@@ -54,7 +54,7 @@ type Fetcher interface {
 }
 ```
 
-当然gocrawler会为用户提供一些开箱可用的调度器以及存储组件等等， 但所有这些构成爬虫的组成部分， 不过就是一个个的接口， 用户可以使用gocrawler提供的模块， 也可以使用自己的， 所以gocraler天然的秉承了极简主义和面向接口编程的哲学。
+当然gocrawler会为用户提供一些开箱可用的调度器以及存储组件等等， 但所有这些构成爬虫的组成部分， 不过就是一个个的接口， 用户可以使用gocrawler提供的模块， 也可以使用自己的， 所以gocrawler天然的秉承了极简主义和面向接口编程的哲学。
 > 极简和可拓展性才是gocrawler最最核心的feature
 
 
@@ -180,7 +180,7 @@ func (s *nsqScheduler) Stop() {
 }
 
 ```
-因为调度器需要同时实现Push和Pull的操作， 所以`nsqScheduler`同时具有一个nsq.Consumer(实现pull)和nsq.Producer(实现push)的指针.
+因为调度器需要同时实现Push和Pull的操作， 所以nsqScheduler同时具有一个nsq.Consumer(实现pull)和nsq.Producer(实现push)的指针.
 Pull的逻辑很简单， 直接从workerChan获取一个Request对象就好
 Push则会根据类型选择DIRECT_PUSH直接往workerChan放一个Request， 如果是NSQ_PUSH则会是将Request通过nsqProducer发布到nsq里面
 最后Schedule的实现很简单， 就是连接nsqlookupd, 开起监听， 当监听一个到message时就会触发HandleMessage回调函数， 而HandleMessage的主要逻辑就把获取的Request对象push到workerCh中
@@ -317,11 +317,9 @@ func NewBufferedMongoStorage(...) *bufferedMongoStorage {
         return True
 
 ```
-然后stats是存储在内存中的一个字典， 这种实现方式问题：
-
+然后stats是存储在内存中的一个字典， 这种实现方式也存在以下问题：
 - 相比于请求数， 其实我更关心完成数量， 特别是当我需要重试请求， 或者有带缓存的存储器的时候；请求数量不是一个核心指标
 - 更重要的一点是， 在分布式场景下 ，基于worker的内存计数显然是不行的
-
 顺带提一嘴，scrapy的计数函数inc_value并没有锁， 当然原因在于它的schduler的入队操作并不是并发实现的
 ```python
     def inc_value(
@@ -331,7 +329,7 @@ func NewBufferedMongoStorage(...) *bufferedMongoStorage {
         d[key] = d.setdefault(key, start) + count
 
 ```
-Ok, 言归正转，总而言之我需要一个可以在分布式场景下完成任务完成计数的功能， 一个很容易想到的解决方案就是redis的[INCR操作](), incr会以并发安全的方式为key加上1， 这样结合gocrawler的worker的AfterSave生命周期函数（添加一个调用redis的incr函数的hook）， 我就可以实现一个不错的分布式计数功能。
+Ok, 言归正转，总而言之我需要一个可以在分布式场景下完成任务完成计数的功能， 一个很容易想到的解决方案就是redis的[INCR操作](), incr会以并发安全的方式为key加上1， 这样结合gocrawler的worker的AfterSave生命周期函数（添加一个调用redis的incr函数的hook）， 我就可以实现一个不错的分布式计数功能。  
 但问题是， 如果我用的是带缓存的存储器， 然后实现的是批量存储呢？如果存储不会失败， 那么使用生命周期函数统计数量， 然后多次调用INCR似乎也不是不行， 但是不管是存储不会失败还是多次调用INCR都不是鲁棒性很高的操作，理想情况是在发生flush的情况下， 对flush的数量进行单次计数才是最完美的。但是redis除了incr是并发安全之外，常规的修改计数的方法一定会涉及get和put操作， 所以它不是并发安全的， 所以需要使用redis的事务：
 > 这里我直接用了官方示例， 稍微调整一下来实现了这个功能
 
@@ -426,7 +424,7 @@ func (w *worker) BeforeRequest(ctx context.Context, req *request.Request) {
 }
 
 ```
-BeforeRequest会在worker嗲用Fetch之前被调用：
+BeforeRequest会在worker调用Fetch之前被调用：
 ```go
 ...
 w.BeforeRequest(context.Background(), req)
@@ -519,15 +517,18 @@ func singleRun(w *worker) {
 			continue
 		}
 		var reqKey string
-		if w.AddtionalHashKeys == nil {
-			reqKey = req.Hash()
-		} else {
-			reqKey = req.Hash(w.AddtionalHashKeys...)
+		if w.UseVisit {
+			if w.AddtionalHashKeys == nil {
+				reqKey = req.Hash()
+			} else {
+				reqKey = req.Hash(w.AddtionalHashKeys...)
+			}
+
+			if w.Vister.IsVisited(reqKey) {
+				continue
+			}
 		}
 
-		if w.UseVist && w.Vister.IsVisited(reqKey) {
-			continue
-		}
 		originReq := req
 
 		// Fetch
@@ -586,10 +587,24 @@ func singleRun(w *worker) {
             w.AfterSave(context.Background(), parseResult)
 
 		}
-		if w.UseVist {
+		if w.UseVisit {
 			w.Vister.SetVisitted(reqKey, w.VisterTTL)
 		}
 
 	}
 }
 ```
+这里还需要追加提到的一点是， 如果用户决定使用过滤器（在一定时间周期内， 不想反复地抓取相同数据）， 那么可以通过下面的Option函数添加过滤器
+```go
+func WithVisiter(v visit.Visit, ttl time.Duration) Option {
+	return func(opts *options) {
+		opts.Vister = v
+		opts.UseVisit = true
+		opts.VisiterTTL = ttl
+
+	}
+}
+```
+> worker的所有外部依赖都是基于Option模式添加的
+然后如果UseVisit是true的话， worker会在发起请求前先判断Request是不是已经Visit过了, 如果开启UseVisit其有访问过， 那么就会直接进入下轮循环
+> gocralwer提供了一个基于redis的Vister的实现，默认实现并没有使用BloomFilter， 如果数据量非常大， 且不太在意部分Request会被误判为访问过(hash冲突)的话， 也可以自己实现一个基于BloomFilter(redis也是支持的)
