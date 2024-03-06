@@ -44,18 +44,61 @@ import (
 )
 
 type Storage interface {
-	Save(datas ...parser.ParseItem) error
+	Save(ctx context.Context, datas ...parser.ParseItem) error
 }
 ```
 其它组件， 再比如Fetcher(请求数据模块)也不过只是一个仅仅有Fetch方法的interface。
 ```go
 type Fetcher interface {
-	Fetch(req *request.Request) (*http.Response, error)
+	Fetch(ctx context.Context, req *request.Request) (*http.Response, error)
 }
 ```
 
 当然gocrawler会为用户提供一些开箱可用的调度器以及存储组件等等， 但所有这些构成爬虫的组成部分， 不过就是一个个的接口， 用户可以使用gocrawler提供的模块， 也可以使用自己的， 所以gocrawler天然的秉承了极简主义和面向接口编程的哲学。
 > 极简和可拓展性才是gocrawler最最核心的feature
+
+
+## 构建请求对象
+Request请求对象是一个结构体， 定义如下：
+```go
+type Request struct
+	URL    string
+	Method string
+	Retry  int
+	Data   map[string]string
+}
+
+type RequestDataCtxKey struct{}
+
+```
+Request对象字段说明：
+- URL定义了请求地址
+- Method定义了具体的请求方法， 比如GET, POST等
+- Retry定义了重试的次数， 如果worker定义了全局最大retry数， 爬虫引擎会在关键节点(比如决定是否重试)的时候查看这个值
+- Data是用户自定义的一些元数据， 这些元数据会通过context.WithValue的方式注入到爬虫上下文中， 注入的键为上面的RequestDataCtxKey类型
+
+为了实现爬虫的去重， 一种实现的方式是：不希望相同的Request在一定的时间内被访问两次， 首先需要去hash这个请求
+
+```golang
+func (r *Request) Hash(hashFields ...string) string {
+	components := make([][]byte, 2+len(hashFields))
+	components[0] = []byte(r.URL)
+	components[1] = []byte(r.Method)
+
+	for i, field := range hashFields {
+		if fieldValue, ok := r.Data[field]; ok {
+			components[i+2] = []byte(fieldValue)
+		} else {
+			panic(fmt.Errorf("field not in request.Data"))
+		}
+	}
+
+	hash := md5.Sum(bytes.Join(components, []byte(":")))
+	return string(hash[:])
+}
+```
+默认的Hash实现比较简单， 这里使用md5对指定的字段进行摘要；  
+当然， 需要注意的一点是：什么时候设置已请求已访问很关键， 假设在获得请求的时候就进行设置， 那么如果请求失败没有入库， 依然会被认为是访问过的，所以在gocrawler中， 设置去重项的时间节点是在数据导入之后
 
 
 ## 实现调度器
@@ -407,22 +450,22 @@ collectTaskCounts函数是考虑到缓存队列中可能同时存在多个任务
 目前gocrawler的worker支持的生命周期函数有：
 
 - BeforeRequest
+- AfterRequest
 - BeforeSave
 - AfterSave
 
 它们的应用场景是怎样的呢？这里以BeforeRequest为例， 
 ```go
-type BeforeRequestHook func(context.Context, *request.Request) error
+type BeforeRequestHook func(context.Context, *request.Request) (Signal, error)
 
-func (w *worker) BeforeRequest(ctx context.Context, req *request.Request) {
+func (w *worker) BeforeRequest(ctx context.Context, req *request.Request) (Signal, error) {
+	var sig Signal
 	if w.BeforeRequestHook != nil {
-		err := w.BeforeRequestHook(ctx, req)
-		if err != nil {
-			panic(err)
-		}
+		return w.BeforeRequestHook(ctx, req)
 	}
+	sig |= DummySignal
+	return sig, nil
 }
-
 ```
 BeforeRequest会在worker调用Fetch之前被调用：
 ```go
@@ -433,6 +476,13 @@ resp, err := w.Fetcher.Fetch(req)
 ```
 
 因为BeforeRequestHook有指向Request的指针， 意味着我们可以在worker发起网络请求之前修改Request的参数， 比如Request的Url， 爬虫任务的目标url通常是规律的， 比如站点网址+ 某种ID或者页码数，而站点网址通常是固定的， 如此一来， 我们在提交任务的时候， 不用写入完整的url， 把补全Url的功能写成一个BeforeRequestHook提交给worker即可， 这样可以在很大程度减少任务队列的存储消耗
+
+### 关于Signal
+生命周期函数的第一个返回值是Signal, Siganl是一个8位的flag， 方便用户告诉worker的主流程， 接下来该如何操作
+通过signal, 用户可以控制worker选择直接进行一下轮循环， 或者直接忽略错误， 再或者直接panic错误  
+> 生命周期函数是用户外部注入到框架的，所以通过Signal作为桥梁， 让用户拥有控制worker运行流程的能力是很重要的
+
+
 ## 其他组件
 其他诸如网页解析器， 代理获取， cookie获取， 请求头获取等组件的实现也并不困难, gocrawler同样也提供了相应的接口。
 当然有一个组件其实非常重要，那就是进行网络请求的Fetcher组件
