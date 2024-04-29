@@ -5,9 +5,6 @@ slug:
 date: 2023-12-29
 categories:
     - 数据库
-
-tags:
-    - 阅读笔记
 weight: 1       # You can add weight to some posts to override the default sorting (date descending)
 ---
 

@@ -6,8 +6,7 @@ date: 2024-02-21
 categories:
     - golang
 tags:
-    - 爬虫
-    - 分布式
+    - 爬虫框架
 weight: 1       
 ---
 

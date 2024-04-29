@@ -4,8 +4,9 @@ description:
 slug: 
 date: 2024-01-18
 categories:
-    - 自然语言
-    - 深度学习
+    - NLP
+tags:
+    - seq2seq
 
 weight: 1       # You can add weight to some posts to override the default sorting (date descending)
 ---

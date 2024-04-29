@@ -3,6 +3,8 @@ title: RAG进阶技巧
 date: 2024-04-29
 categories:
     - LLM
+tags:
+    - RAG
 weight: 1       # You can add weight to some posts to override the default sorting (date descending)
 ---
 
