@@ -10,7 +10,7 @@ weight: 1       # You can add weight to some posts to override the default sorti
 我们知道好的prompt会直接关系到LLM应用的质量，那么如何通过提示工程获得更好的Prompt会是一件非常重要且有意义的事情。  
 在实现某种调优之前， 我们首先需要搞清楚一件事情， 如何去评估某一项对Prompt进行调优的工程是不是真的是有效的
 ## 实现对Query Engine的评估
-实现的方式说起来很简单，以QA场景为例，  假定我们有一个人为label过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。
+实现的方式说起来很简单，以QA场景为例，  假定我们有一个人为标注过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。
 
 | Question | Answer |
 | --- | --- |
@@ -18,8 +18,8 @@ weight: 1       # You can add weight to some posts to override the default sorti
 | .... | ... |
 | .... | .... |
 
-当然这里的问题在于， 我如何廉价地获取类似上面的这种格式的数据集呢？要知道人工标注是非常昂贵的。   
-一个聪明的方案是: 相较于通过Question获取Answer， 何不如基于Anwser来获取Quesion。后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)
+当然这里的问题在于， **我如何廉价地获取类似上面的这种格式的数据集呢**？要知道人工标注是非常昂贵的。   
+一个聪明的方案是: 相较于基于问题给出回答， 何不如基于回答来获取问题呢？后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)
 
 ### 具体代码实现--以llamaindex为例子
 准备
@@ -33,7 +33,7 @@ Settings.llm = llm
 embed_modle =  HuggingFaceEmbedding("BAAI/bge-base-en-v1.5")
 Settings.embed_model = embed_modle
 ```
-> 老样子， 贫穷的我依然现在llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）
+> 老样子， 贫穷的我依然选择llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）
 
 获取数据:
 ```python
@@ -114,9 +114,9 @@ generate only questions based on the below query.
 See？我们其实是让大模型根据文本来生成问题
 
 ## 使用Meta Prompt来调优prompt
-首先这个idea来自于这篇论文：[https://arxiv.org/pdf/2309.03409](https://arxiv.org/pdf/2309.03409)
-至于实现， 简单来讲， 就是通过迭代的方式， 让Meta Prompt(元提示)基于现有的prompt表现(是一个随着迭代不断扩展的列表， 它会成为Meta Prompt的一部分来做为上下文的一部分)， 来生成更好的提示来改善我们的初始prompt
-首先我们来看一下我们的元提示：
+首先这个idea来自于这篇论文：[https://arxiv.org/pdf/2309.03409](https://arxiv.org/pdf/2309.03409)  
+至于实现， 简单来讲， 就是通过迭代的方式， 让Meta Prompt(元提示)基于现有的prompt表现(是一个随着迭代不断扩展的列表， 它会成为Meta Prompt的一部分来做为上下文的一部分)， 来生成更好的提示来改善我们的初始prompt  
+首先我们来看一下我们的元提示长什么样：  
 ```python
 meta_tmpl_str = """\
 Your task is to generate the instruction <INS>. Below are some previous instructions with their scores.
@@ -145,7 +145,7 @@ Write your new instruction (<INS>) that is different from the old ones and has a
 Instruction (<INS>): \
 """
 ```
-这一长串的promt的最终目的是为了生成一个promt的前缀， 以方便后续更新prompt
+这一长串的promt的最终目的是为了生成一个promt的前缀（也就是上面元提示中的Instruction (<INS>)）， 后续会不断地根据生成的Instruction及相应的表现（这个表现就是基于前面我们模拟生成的那个数据集来的）
 
 首先我们需要准备好用来评估LLM问答效果的函数：
 ```python
@@ -160,8 +160,6 @@ batch_runner = BatchEvalRunner(evaluator_dict, workers=2, show_progress=True)
 
 
 async def get_correctness(query_engine, eval_qa_pairs, batch_runner):
-    # then evaluate
-    # TODO: evaluate a sample of generated results
     eval_qs = [q for q, _ in eval_qa_pairs]
     eval_answers = [a for _, a in eval_qa_pairs]
     pred_responses = get_responses(eval_qs, query_engine, show_progress=True)
@@ -174,6 +172,7 @@ async def get_correctness(query_engine, eval_qa_pairs, batch_runner):
     ).mean()
     return avg_correctness
 ```
+可以看到`get_correctness`会通过新的query_engine(内嵌了新生成的提示前缀, 也就是Instruction)来对我们的模拟数据中的问题进行回答， 然后基于这个预测回答和模拟数据中的回答来获得准确率
 ```python
 from llama_index.core import PromptTemplate
 
@@ -210,7 +209,7 @@ def format_meta_tmpl(
     )
     return fmt_meta_tmpl
 ```
-`prev_instr_score_pairs`是之前迭代产出的提示前缀以及相应的评分
+`prev_instr_score_pairs`是之前迭代产出的提示前缀以及相应的评分， 所以它会随着迭代的增加而不断扩展， 它的长度适合迭代次数对应的
 ```python
 def get_full_prompt_template(cur_instr: str, prompt_tmpl):
     tmpl_str = prompt_tmpl.get_template()
@@ -218,6 +217,9 @@ def get_full_prompt_template(cur_instr: str, prompt_tmpl):
     new_tmpl = PromptTemplate(new_tmpl_str)
     return new_tmpl
 ```
+`get_full_prompt_template`其实就是把我们生成的Intruction和原有的提示进行了拼接， 后续会拿这个拼接完的提示去更新Intruction  
+
+最后就是我们的主流程代码：  
 ```python
 def _parse_meta_response(meta_response: str):
     return str(meta_response).split("\n")[0]
@@ -239,7 +241,6 @@ async def optimize_prompts(
 
     cur_instr = initial_instr
     for idx in range(num_iterations):
-        # TODO: change from -1 to 0
         if idx > 0:
             # first generate
             fmt_meta_tmpl = format_meta_tmpl(
@@ -294,4 +295,5 @@ print(new_qa_prompt)
 
 ## 参考
 [https://docs.llamaindex.ai/en/stable/examples/prompts/prompt_optimization](https://docs.llamaindex.ai/en/stable/examples/prompts/prompt_optimization/)
+
 
