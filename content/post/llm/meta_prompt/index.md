@@ -209,7 +209,7 @@ def format_meta_tmpl(
     )
     return fmt_meta_tmpl
 ```
-`prev_instr_score_pairs`是之前迭代产出的提示前缀以及相应的评分， 所以它会随着迭代的增加而不断扩展， 它的长度适合迭代次数对应的
+`prev_instr_score_pairs`是之前迭代产出的提示前缀以及相应的评分， 所以它会随着迭代的增加而不断扩展， 它的长度会和迭代次数对应的
 ```python
 def get_full_prompt_template(cur_instr: str, prompt_tmpl):
     tmpl_str = prompt_tmpl.get_template()
