@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>NLP on superjcd</title><link>https://superjcd.github.io/categories/nlp/</link><description>Recent content in NLP on superjcd</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 18 Jan 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://superjcd.github.io/categories/nlp/index.xml" rel="self" type="application/rss+xml"/><item><title>Seq2Seq原理到实现</title><link>https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/</link><pubDate>Thu, 18 Jan 2024 00:00:00 +0000</pubDate><guid>https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/</guid><description>&lt;h2 id="seq2seq">Seq2Seq
+&lt;/h2>&lt;h3 id="模型架构">模型架构
+&lt;/h3>&lt;p>seq2seq是2014年随论文[&lt;a class="link" href="https://arxiv.org/abs/1409.3215" target="_blank" rel="noopener"
+>Sequence to Sequence Learning with Neural Networks&lt;/a>]发布
+的一种NLG自然语言（生成式）模型， 下图直观展示了seq2seq模型在机器翻译任务（德译英）中，神经网络前向计算（Forwad Computiation）的工作流程&lt;/p>
+&lt;p>&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/seq2seq.png"
+width="959"
+height="599"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/seq2seq_hu1264161868197847433.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/seq2seq_hu12533742928908207377.png 1024w"
+loading="lazy"
+alt="seq2seq"
+class="gallery-image"
+data-flex-grow="160"
+data-flex-basis="384px"
+>&lt;br>
+seq2seq模型的关键点在于， 将模型分成了编码器和解码器：&lt;br>
+编码器在编码阶段，会对每一个Token（上面的话是一个个的单词）进行&lt;strong>编码&lt;/strong>，编码过程通常会使用RNN来实现(论文里使用的是LSTM， 所以会同时有hidden state和cell两个输出， 如果是最原始的RNN， 那么应该就只有一个hidden state)。&lt;br>
+解码器会沿用编码器的结构， 比如这里的编码器用的是双层的LSTM(论文里面是4层)， 那么解码器也会使用双层的LSTM， 同时解码器的最初的hidden state和cell刚好就是解码器的最后一步产出的hidden state和cell&lt;/p>
+&lt;blockquote>
+&lt;p>hidden state的维度和cell的维度通常会一样&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="编码器">编码器
+&lt;/h3>&lt;p>我们拆解一下整个seq2seq， 先只关注编码器这个部分&lt;/p>
+&lt;p>&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder.png"
+width="440"
+height="323"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_hu8009643578920737105.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_hu13681366792852420493.png 1024w"
+loading="lazy"
+alt="encoder"
+class="gallery-image"
+data-flex-grow="136"
+data-flex-basis="326px"
+>&lt;/p>
+&lt;p>编码器前向计算涉及的公式：&lt;/p>
+&lt;p>&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula1.png"
+width="285"
+height="64"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula1_hu6172150119980973305.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula1_hu15051125157335467098.png 1024w"
+loading="lazy"
+class="gallery-image"
+data-flex-grow="445"
+data-flex-basis="1068px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>e指的是embedding词嵌入&lt;/p>
+&lt;/blockquote>
+&lt;p>也就是当我们使用一般的RNN模型时， 就是上面的公式， 如果是LSTM, 因为会涉及cell（记忆单元）所以会多一个参数。上面的公式没有涉及层级， 如果涉及多个层级（只有第一层会用到embedding）， 以LSTM模型为例， 公式为：&lt;/p>
+&lt;p>&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula2.png"
+width="377"
+height="71"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula2_hu12339779176501503145.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/encoder_formula2_hu5336244642429052342.png 1024w"
+loading="lazy"
+class="gallery-image"
+data-flex-grow="530"
+data-flex-basis="1274px"
+>&lt;/p>
+&lt;p>从第二层layer开始， 编码器的第一个参数变成了前一层的hidden state而不是embbeding&lt;/p>
+&lt;h3 id="编码器pytorch实现">编码器pytorch实现
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Encoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_layers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dropout&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">n_layers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">n_layers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embedding&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">rnn&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LSTM&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_layers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">src&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">embedded&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">src&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">outputs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">rnn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embedded&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;blockquote>
+&lt;p>这里注意负责前向计算逻辑的forward函数中参数src的形状是：输入句子长度（或者说token数） * Bacth大小，因为LSTM会默认接受输入句子长度 * Bacth大小 * Embedding大小的输入， 虽然可以将Batch大小放到第一维度， 但是考虑到seq2seq其实是根据一个一个的token进行前向运算的运算的， 所以第一个维度是句子长度是更符合逻辑的， 相当于将token置于for loop的最外层（虽然可能不符合多数人的直觉）&lt;/p>
+&lt;/blockquote>
+&lt;p>Ok， 由于我们的Decoder只需要hidden state和cell， 所以forwar只输出hidden和cell&lt;/p>
+&lt;h3 id="解码器">解码器
+&lt;/h3>&lt;p>回过头来我们来关注解码器：&lt;br>
+&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder.png"
+width="285"
+height="465"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder_hu10388762060673316159.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder_hu5512932341687065720.png 1024w"
+loading="lazy"
+alt="decoder"
+class="gallery-image"
+data-flex-grow="61"
+data-flex-basis="147px"
+>&lt;br>
+其实解码器和编码器在结构上是非常相似的， 一个比较直观的区别在于： 解码器会在每个计算步骤产出的output之上构建一个全连接层， 然后输出的大小是词汇表的大小&lt;/p>
+&lt;p>解码器的计算公式：&lt;br>
+&lt;img src="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder_formula.png"
+width="371"
+height="65"
+srcset="https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder_formula_hu17885942291783724144.png 480w, https://superjcd.github.io/p/seq2seq%E5%8E%9F%E7%90%86%E5%88%B0%E5%AE%9E%E7%8E%B0/imgs/decoder_formula_hu10817745205262158215.png 1024w"
+loading="lazy"
+class="gallery-image"
+data-flex-grow="570"
+data-flex-basis="1369px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>这里的d其实就是目标输出的embedding layer, 类比编码器公式中的e； s就是hidden state类比编码器公式中的h&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="解码器pytorch实现">解码器pytorch实现
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Decoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">output_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_layers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dropout&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">output_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">n_layers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">n_layers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embedding&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">output_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">rnn&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LSTM&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embedding_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_layers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">fc_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">output_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">embedded&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">input&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">rnn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embedded&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">prediction&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">fc_out&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">squeeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">prediction&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>在代码上， 解码器也是和编码器相似的（甚至rnn模型的参数也是一样的）， 当然也一些不同的地方：&lt;/p>
+&lt;ul>
+&lt;li>forward的参数多了hidden和cell， 这个是encoder的输出&lt;/li>
+&lt;li>input由于是一个个的token， 所以使用&lt;code>input = input.unsqueeze(0)&lt;/code>补充了第一维度， 这是为了满足LSTM模型的输入需求&lt;/li>
+&lt;li>prediction预测是构建在output之上的， 由于是第一维可有可无， 我们这里用squeeze压缩掉&lt;/li>
+&lt;/ul>
+&lt;h3 id="完整seq2seq代码实现">完整seq2seq代码实现
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Seq2Seq&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">encoder&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">decoder&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encoder&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">encoder&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">decoder&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">decoder&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">device&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">assert&lt;/span> &lt;span class="n">encoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_dim&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">decoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">assert&lt;/span> &lt;span class="n">encoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">n_layers&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">decoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">n_layers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">src&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">trg&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">teacher_forcing_ratio&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">batch_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">trg&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trg_length&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">trg&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trg_vocab_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">decoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">output_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">outputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">zeros&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">trg_length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">trg_vocab_size&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">src&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">trg&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">t&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">trg_length&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">decoder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">input&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cell&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">outputs&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">teacher_force&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">random&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">random&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">teacher_forcing_ratio&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">top1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">argmax&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">trg&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">teacher_force&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="n">top1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">outputs&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里先解释一下上面的几个新变量：&lt;/p>
+&lt;ul>
+&lt;li>trg其实是target， 表示目标输出， 所以在结构上和input是相似的: 目标字符串长度(token数) * Batch大小&lt;/li>
+&lt;li>teacher_forcing_ratio， 其实就是一个0到1的数值（表示概率）， 这个值表示使用上一步的真实值（ground truth）或者预测值作为下一步输入的概率， 显然易见这个值如果太大的话可能会导致过拟合&lt;/li>
+&lt;/ul>
+&lt;p>当我们把encoder和decoder的逻辑放在一起的时候， 我们能清晰地看到forwad中有一个for循环会沿着输出长度一步一步调用decoder， 然后将每一步的output填充到最后的结果outputs中；&lt;/p>
+&lt;blockquote>
+&lt;p>注意， encoder在整个前向计算中只进行了一次！&lt;/p>
+&lt;/blockquote></description></item></channel></rss>

@@ -1,0 +1,1022 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content=' 关联项目: https://github.com/superjcd/gocrawler\n缘起 我自己是一个python的重度使用者， python中有大量的爬虫相关的包， 也不乏类似scrapy这种非常有知名度的包， 结合redis的scrapy-redis似乎也能在一定程度上解决分布式爬虫的需求。 但是这些依然还是不够， 不管是使用用基于线程的爬虫框架（scrapy）， 还是基于协程的爬虫(ruia)， 它们还是不够高效， 当然一部分的原因是在于python语言本身。python的优势是灵活性， 以及丰富的生态， 但是如果要追求极致的运行效率， 那么go其实是一个更好的选择\n核心特性 个人向来推崇极简主义， 爬虫框架gocrawler的开发也不例外， 对我个人而言， 这个框架最最重要的其实就是一个任务调度器(scheduler)：\n1 2 3 4 5 6 7 8 9 package scheduler import "github.com/superjcd/gocrawler/request" type Scheduler interface { Pull() *request.Request Push(typ int, reqs ...*request.Request) Schedule() } scheduler需要实现的方法无非就是：\nPull, 获取一个request对象 Push, 提交若干request对象 Schedule， 调度器的入口， 启动并持续运行调度器 同样的, 以数据的存储模块store为例， store只需要实现一个Save方法就可以了\n1 2 3 4 5 6 7 8 9 package store import ( "github.com/superjcd/gocrawler/parser" ) type Storage interface { Save(ctx context.Context, datas ...parser.ParseItem) error } 其它组件， 再比如Fetcher(请求数据模块)也不过只是一个仅仅有Fetch方法的interface。\n'><title>golang分布式爬虫设计</title><link rel=canonical href=https://superjcd.github.io/p/golang%E5%88%86%E5%B8%83%E5%BC%8F%E7%88%AC%E8%99%AB%E8%AE%BE%E8%AE%A1/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="golang分布式爬虫设计"><meta property='og:description' content=' 关联项目: https://github.com/superjcd/gocrawler\n缘起 我自己是一个python的重度使用者， python中有大量的爬虫相关的包， 也不乏类似scrapy这种非常有知名度的包， 结合redis的scrapy-redis似乎也能在一定程度上解决分布式爬虫的需求。 但是这些依然还是不够， 不管是使用用基于线程的爬虫框架（scrapy）， 还是基于协程的爬虫(ruia)， 它们还是不够高效， 当然一部分的原因是在于python语言本身。python的优势是灵活性， 以及丰富的生态， 但是如果要追求极致的运行效率， 那么go其实是一个更好的选择\n核心特性 个人向来推崇极简主义， 爬虫框架gocrawler的开发也不例外， 对我个人而言， 这个框架最最重要的其实就是一个任务调度器(scheduler)：\n1 2 3 4 5 6 7 8 9 package scheduler import "github.com/superjcd/gocrawler/request" type Scheduler interface { Pull() *request.Request Push(typ int, reqs ...*request.Request) Schedule() } scheduler需要实现的方法无非就是：\nPull, 获取一个request对象 Push, 提交若干request对象 Schedule， 调度器的入口， 启动并持续运行调度器 同样的, 以数据的存储模块store为例， store只需要实现一个Save方法就可以了\n1 2 3 4 5 6 7 8 9 package store import ( "github.com/superjcd/gocrawler/parser" ) type Storage interface { Save(ctx context.Context, datas ...parser.ParseItem) error } 其它组件， 再比如Fetcher(请求数据模块)也不过只是一个仅仅有Fetch方法的interface。\n'><meta property='og:url' content='https://superjcd.github.io/p/golang%E5%88%86%E5%B8%83%E5%BC%8F%E7%88%AC%E8%99%AB%E8%AE%BE%E8%AE%A1/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='爬虫框架'><meta property='article:published_time' content='2024-02-21T00:00:00+00:00'><meta property='article:modified_time' content='2024-02-21T00:00:00+00:00'><meta name=twitter:title content="golang分布式爬虫设计"><meta name=twitter:description content=' 关联项目: https://github.com/superjcd/gocrawler\n缘起 我自己是一个python的重度使用者， python中有大量的爬虫相关的包， 也不乏类似scrapy这种非常有知名度的包， 结合redis的scrapy-redis似乎也能在一定程度上解决分布式爬虫的需求。 但是这些依然还是不够， 不管是使用用基于线程的爬虫框架（scrapy）， 还是基于协程的爬虫(ruia)， 它们还是不够高效， 当然一部分的原因是在于python语言本身。python的优势是灵活性， 以及丰富的生态， 但是如果要追求极致的运行效率， 那么go其实是一个更好的选择\n核心特性 个人向来推崇极简主义， 爬虫框架gocrawler的开发也不例外， 对我个人而言， 这个框架最最重要的其实就是一个任务调度器(scheduler)：\n1 2 3 4 5 6 7 8 9 package scheduler import "github.com/superjcd/gocrawler/request" type Scheduler interface { Pull() *request.Request Push(typ int, reqs ...*request.Request) Schedule() } scheduler需要实现的方法无非就是：\nPull, 获取一个request对象 Push, 提交若干request对象 Schedule， 调度器的入口， 启动并持续运行调度器 同样的, 以数据的存储模块store为例， store只需要实现一个Save方法就可以了\n1 2 3 4 5 6 7 8 9 package store import ( "github.com/superjcd/gocrawler/parser" ) type Storage interface { Save(ctx context.Context, datas ...parser.ParseItem) error } 其它组件， 再比如Fetcher(请求数据模块)也不过只是一个仅仅有Fetch方法的interface。\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#缘起>缘起</a></li><li><a href=#核心特性>核心特性</a></li><li><a href=#构建请求对象>构建请求对象</a></li><li><a href=#实现调度器>实现调度器</a></li><li><a href=#实现存储器>实现存储器</a></li><li><a href=#实现分布式任务计数>实现分布式任务计数</a></li><li><a href=#生命周期函数>生命周期函数</a><ol><li><a href=#关于signal>关于Signal</a></li></ol></li><li><a href=#其他组件>其他组件</a></li><li><a href=#worker完整工作流>worker完整工作流</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/golang/>Golang</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/golang%E5%88%86%E5%B8%83%E5%BC%8F%E7%88%AC%E8%99%AB%E8%AE%BE%E8%AE%A1/>golang分布式爬虫设计</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Feb 21, 2024</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>10 minute read</time></div></footer></div></header><section class=article-content><blockquote><p>关联项目: <a class=link href=https://github.com/superjcd/gocrawler target=_blank rel=noopener>https://github.com/superjcd/gocrawler</a></p></blockquote><h2 id=缘起>缘起</h2><p>我自己是一个python的重度使用者， python中有大量的爬虫相关的包， 也不乏类似scrapy这种非常有知名度的包， 结合redis的scrapy-redis似乎也能在一定程度上解决分布式爬虫的需求。
+但是这些依然还是不够， 不管是使用用基于线程的爬虫框架（scrapy）， 还是基于协程的爬虫(ruia)， 它们还是不够高效， 当然一部分的原因是在于python语言本身。python的优势是灵活性， 以及丰富的生态， 但是如果要追求极致的运行效率， 那么go其实是一个更好的选择</p><h2 id=核心特性>核心特性</h2><p>个人向来推崇极简主义， 爬虫框架gocrawler的开发也不例外， 对我个人而言， 这个框架最最重要的其实就是一个任务调度器(scheduler)：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span> <span class=nx>scheduler</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=s>&#34;github.com/superjcd/gocrawler/request&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>Scheduler</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Pull</span><span class=p>()</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Push</span><span class=p>(</span><span class=nx>typ</span> <span class=kt>int</span><span class=p>,</span> <span class=nx>reqs</span> <span class=o>...*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Schedule</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>scheduler需要实现的方法无非就是：</p><ul><li>Pull, 获取一个request对象</li><li>Push, 提交若干request对象</li><li>Schedule， 调度器的入口， 启动并持续运行调度器</li></ul><p>同样的, 以数据的存储模块store为例， store只需要实现一个Save方法就可以了</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span> <span class=nx>store</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;github.com/superjcd/gocrawler/parser&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>Storage</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Save</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>datas</span> <span class=o>...</span><span class=nx>parser</span><span class=p>.</span><span class=nx>ParseItem</span><span class=p>)</span> <span class=kt>error</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>其它组件， 再比如Fetcher(请求数据模块)也不过只是一个仅仅有Fetch方法的interface。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>Fetcher</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Fetch</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>req</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>(</span><span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Response</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>当然gocrawler会为用户提供一些开箱可用的调度器以及存储组件等等， 但所有这些构成爬虫的组成部分， 不过就是一个个的接口， 用户可以使用gocrawler提供的模块， 也可以使用自己的， 所以gocrawler天然的秉承了极简主义和面向接口编程的哲学。</p><blockquote><p>极简和可拓展性才是gocrawler最最核心的feature</p></blockquote><h2 id=构建请求对象>构建请求对象</h2><p>Request请求对象是一个结构体， 定义如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>Request</span> <span class=kd>struct</span>
+</span></span><span class=line><span class=cl>	<span class=nx>URL</span>    <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Method</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Retry</span>  <span class=kt>int</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Data</span>   <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=kt>string</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>RequestDataCtxKey</span> <span class=kd>struct</span><span class=p>{}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Request对象字段说明：</p><ul><li>URL定义了请求地址</li><li>Method定义了具体的请求方法， 比如GET, POST等</li><li>Retry定义了重试的次数， 如果worker定义了全局最大retry数， 爬虫引擎会在关键节点(比如决定是否重试)的时候查看这个值</li><li>Data是用户自定义的一些元数据， 这些元数据会通过context.WithValue的方式注入到爬虫上下文中， 注入的键为上面的RequestDataCtxKey类型</li></ul><p>为了实现爬虫的去重， 一种实现的方式是：不希望相同的Request在一定的时间内被访问两次， 首先需要去hash这个请求</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>r</span> <span class=o>*</span><span class=nx>Request</span><span class=p>)</span> <span class=nf>Hash</span><span class=p>(</span><span class=nx>hashFields</span> <span class=o>...</span><span class=kt>string</span><span class=p>)</span> <span class=kt>string</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>components</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>([][]</span><span class=kt>byte</span><span class=p>,</span> <span class=mi>2</span><span class=o>+</span><span class=nb>len</span><span class=p>(</span><span class=nx>hashFields</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>	<span class=nx>components</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=p>=</span> <span class=p>[]</span><span class=nb>byte</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nx>URL</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>components</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span> <span class=p>=</span> <span class=p>[]</span><span class=nb>byte</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nx>Method</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>i</span><span class=p>,</span> <span class=nx>field</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>hashFields</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>fieldValue</span><span class=p>,</span> <span class=nx>ok</span> <span class=o>:=</span> <span class=nx>r</span><span class=p>.</span><span class=nx>Data</span><span class=p>[</span><span class=nx>field</span><span class=p>];</span> <span class=nx>ok</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>components</span><span class=p>[</span><span class=nx>i</span><span class=o>+</span><span class=mi>2</span><span class=p>]</span> <span class=p>=</span> <span class=p>[]</span><span class=nb>byte</span><span class=p>(</span><span class=nx>fieldValue</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nb>panic</span><span class=p>(</span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;field not in request.Data&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>hash</span> <span class=o>:=</span> <span class=nx>md5</span><span class=p>.</span><span class=nf>Sum</span><span class=p>(</span><span class=nx>bytes</span><span class=p>.</span><span class=nf>Join</span><span class=p>(</span><span class=nx>components</span><span class=p>,</span> <span class=p>[]</span><span class=nb>byte</span><span class=p>(</span><span class=s>&#34;:&#34;</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nb>string</span><span class=p>(</span><span class=nx>hash</span><span class=p>[:])</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>默认的Hash实现比较简单， 这里使用md5对指定的字段进行摘要；<br>当然， 需要注意的一点是：什么时候设置已请求已访问很关键， 假设在获得请求的时候就进行设置， 那么如果请求失败没有入库， 依然会被认为是访问过的，所以在gocrawler中， 设置去重项的时间节点是在数据导入之后</p><h2 id=实现调度器>实现调度器</h2><p>调度器是gocrawler的核心，因为需要实现分布式调度， 所以类似scrapy的那种基于线程和内存队列的方式是不合适的, 所以需要选择一个高吞吐的存储介质； 消息队列是很容易想到的选项， kafaka, rabbit mq, rocket mq这些其实都可以， 但是作为爬虫worker的消息队列， 不需要太强的一致性保证，所以gocrawler默认提供了一个基于nsq的实现：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span><span class=lnt>107
+</span><span class=lnt>108
+</span><span class=lnt>109
+</span><span class=lnt>110
+</span><span class=lnt>111
+</span><span class=lnt>112
+</span><span class=lnt>113
+</span><span class=lnt>114
+</span><span class=lnt>115
+</span><span class=lnt>116
+</span><span class=lnt>117
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span> <span class=nx>nsq</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;encoding/json&#34;</span>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;log&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;github.com/nsqio/go-nsq&#34;</span>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;github.com/superjcd/gocrawler/request&#34;</span>
+</span></span><span class=line><span class=cl>	<span class=s>&#34;github.com/superjcd/gocrawler/scheduler&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>const</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>	<span class=nx>DIRECT_PUSH</span> <span class=p>=</span> <span class=kc>iota</span>
+</span></span><span class=line><span class=cl>	<span class=nx>NSQ_PUSH</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>nsqScheduler</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>workerCh</span>       <span class=kd>chan</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqLookupdAddr</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>topicName</span>      <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>channelName</span>    <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqConsumer</span>    <span class=o>*</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>Consumer</span>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqProducer</span>    <span class=o>*</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>Producer</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>nsqMessageHandler</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>s</span> <span class=o>*</span><span class=nx>nsqScheduler</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>h</span> <span class=o>*</span><span class=nx>nsqMessageHandler</span><span class=p>)</span> <span class=nf>HandleMessage</span><span class=p>(</span><span class=nx>m</span> <span class=o>*</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>Message</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=kd>var</span> <span class=nx>err</span> <span class=kt>error</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>m</span><span class=p>.</span><span class=nx>Body</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>processMessage</span> <span class=o>:=</span> <span class=kd>func</span><span class=p>(</span><span class=nx>mb</span> <span class=p>[]</span><span class=kt>byte</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>var</span> <span class=nx>req</span> <span class=nx>request</span><span class=p>.</span><span class=nx>Request</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>json</span><span class=p>.</span><span class=nf>Unmarshal</span><span class=p>(</span><span class=nx>mb</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>req</span><span class=p>);</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>h</span><span class=p>.</span><span class=nx>s</span><span class=p>.</span><span class=nf>Push</span><span class=p>(</span><span class=nx>DIRECT_PUSH</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>err</span> <span class=p>=</span> <span class=nf>processMessage</span><span class=p>(</span><span class=nx>m</span><span class=p>.</span><span class=nx>Body</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>var</span> <span class=nx>_</span> <span class=nx>scheduler</span><span class=p>.</span><span class=nx>Scheduler</span> <span class=p>=</span> <span class=p>(</span><span class=o>*</span><span class=nx>nsqScheduler</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>NewNsqScheduler</span><span class=p>(</span><span class=nx>topicName</span><span class=p>,</span> <span class=nx>channelName</span><span class=p>,</span> <span class=nx>nsqAddr</span><span class=p>,</span> <span class=nx>nsqLookupdAddr</span> <span class=kt>string</span><span class=p>)</span> <span class=o>*</span><span class=nx>nsqScheduler</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqConfig</span> <span class=o>:=</span> <span class=nx>nsq</span><span class=p>.</span><span class=nf>NewConfig</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqConsumer</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>nsq</span><span class=p>.</span><span class=nf>NewConsumer</span><span class=p>(</span><span class=nx>topicName</span><span class=p>,</span> <span class=nx>channelName</span><span class=p>,</span> <span class=nx>nsqConfig</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>nsqProducer</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>nsq</span><span class=p>.</span><span class=nf>NewProducer</span><span class=p>(</span><span class=nx>nsqAddr</span><span class=p>,</span> <span class=nx>nsqConfig</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>workerCh</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>(</span><span class=kd>chan</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>&amp;</span><span class=nx>nsqScheduler</span><span class=p>{</span><span class=nx>workerCh</span><span class=p>:</span> <span class=nx>workerCh</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>topicName</span><span class=p>:</span>      <span class=nx>topicName</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>channelName</span><span class=p>:</span>    <span class=nx>channelName</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>nsqLookupdAddr</span><span class=p>:</span> <span class=nx>nsqLookupdAddr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>nsqConsumer</span><span class=p>:</span>    <span class=nx>nsqConsumer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>nsqProducer</span><span class=p>:</span>    <span class=nx>nsqProducer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>nsqScheduler</span><span class=p>)</span> <span class=nf>Pull</span><span class=p>()</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>req</span> <span class=o>:=</span> <span class=o>&lt;-</span><span class=nx>s</span><span class=p>.</span><span class=nx>workerCh</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>req</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>nsqScheduler</span><span class=p>)</span> <span class=nf>Push</span><span class=p>(</span><span class=nx>typ</span> <span class=kt>int</span><span class=p>,</span> <span class=nx>reqs</span> <span class=o>...*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>switch</span> <span class=nx>typ</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=nx>DIRECT_PUSH</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>req</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>reqs</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>s</span><span class=p>.</span><span class=nx>workerCh</span> <span class=o>&lt;-</span> <span class=nx>req</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=nx>NSQ_PUSH</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>req</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>reqs</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>msg</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>json</span><span class=p>.</span><span class=nf>Marshal</span><span class=p>(</span><span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;push msg to nsq failed&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=nx>s</span><span class=p>.</span><span class=nx>nsqProducer</span><span class=p>.</span><span class=nf>Publish</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>topicName</span><span class=p>,</span> <span class=nx>msg</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>default</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=s>&#34;wrong push type&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>nsqScheduler</span><span class=p>)</span> <span class=nf>Schedule</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>s</span><span class=p>.</span><span class=nx>nsqConsumer</span><span class=p>.</span><span class=nf>AddHandler</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>nsqMessageHandler</span><span class=p>{</span><span class=nx>s</span><span class=p>:</span> <span class=nx>s</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>s</span><span class=p>.</span><span class=nx>nsqConsumer</span><span class=p>.</span><span class=nf>ConnectToNSQLookupd</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>nsqLookupdAddr</span><span class=p>);</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>nsqScheduler</span><span class=p>)</span> <span class=nf>Stop</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>s</span><span class=p>.</span><span class=nx>nsqConsumer</span><span class=p>.</span><span class=nf>Stop</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>因为调度器需要同时实现Push和Pull的操作， 所以nsqScheduler同时具有一个nsq.Consumer(实现pull)和nsq.Producer(实现push)的指针.
+Pull的逻辑很简单， 直接从workerChan获取一个Request对象就好
+Push则会根据类型选择DIRECT_PUSH直接往workerChan放一个Request， 如果是NSQ_PUSH则会是将Request通过nsqProducer发布到nsq里面
+最后Schedule的实现很简单， 就是连接nsqlookupd, 开起监听， 当监听一个到message时就会触发HandleMessage回调函数， 而HandleMessage的主要逻辑就把获取的Request对象push到workerCh中</p><blockquote><p>由于nsq本身并<a class=link href=https://nsq.io/overview/features_and_guarantees.html target=_blank rel=noopener>不能保证顺序</a>, 所以这个Scheduler不是严格意义上的FIFO, 当然对于爬虫来说绝对的先入先出不是特别的重要</p></blockquote><h2 id=实现存储器>实现存储器</h2><p>通常我们会使用mysql之类的关系性数据库作为存储器， 无它， 比较便利。但是考虑到爬虫任务的特殊性， 我个人其实会更倾向于使用文档性数据库， 因为页面的变动是常有的事， 而且，爬取得的数据不见得都是规则的，所以有严格的shema的关系型数据库显然不是最适合的选择</p><blockquote><p>虽然mysql现在也支持存储json， 但是查询性能无法与原生的文档数据库相媲美。当然使用gocrawler, 因为只是依赖接口， 所以实现一个支持Save的mysql存储器也是可以的。</p></blockquote><p>gocrawler自带基于mongo的存储器：</p><ul><li>无缓存mongo存储器</li><li>带缓存的mongo存储器</li></ul><p>无缓存实现：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>mongoStorage</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Cli</span> <span class=o>*</span><span class=nx>qmgo</span><span class=p>.</span><span class=nx>QmgoClient</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>var</span> <span class=nx>_</span> <span class=nx>store</span><span class=p>.</span><span class=nx>Storage</span> <span class=p>=</span> <span class=p>(</span><span class=o>*</span><span class=nx>mongoStorage</span><span class=p>)(</span><span class=kc>nil</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>NewMongoStorage</span><span class=p>(</span><span class=nx>uri</span><span class=p>,</span> <span class=nx>database</span><span class=p>,</span> <span class=nx>collection</span> <span class=kt>string</span><span class=p>)</span> <span class=o>*</span><span class=nx>mongoStorage</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>ctx</span> <span class=o>:=</span> <span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=nx>cli</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>qmgo</span><span class=p>.</span><span class=nf>Open</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>qmgo</span><span class=p>.</span><span class=nx>Config</span><span class=p>{</span><span class=nx>Uri</span><span class=p>:</span> <span class=nx>uri</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>Database</span><span class=p>:</span> <span class=nx>database</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>Coll</span><span class=p>:</span>     <span class=nx>collection</span><span class=p>})</span> <span class=c1>// counter
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nb>panic</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>&amp;</span><span class=nx>mongoStorage</span><span class=p>{</span><span class=nx>Cli</span><span class=p>:</span> <span class=nx>cli</span><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>mongoStorage</span><span class=p>)</span> <span class=nf>Save</span><span class=p>(</span><span class=nx>items</span> <span class=o>...</span><span class=nx>parser</span><span class=p>.</span><span class=nx>ParseItem</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=kd>var</span> <span class=nx>result</span> <span class=o>*</span><span class=nx>qmgo</span><span class=p>.</span><span class=nx>InsertOneResult</span>
+</span></span><span class=line><span class=cl>	<span class=kd>var</span> <span class=nx>err</span> <span class=kt>error</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>item</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>items</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>result</span><span class=p>,</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>s</span><span class=p>.</span><span class=nx>Cli</span><span class=p>.</span><span class=nx>Collection</span><span class=p>.</span><span class=nf>InsertOne</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span> <span class=nx>item</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Println</span><span class=p>(</span><span class=s>&#34;[store]insert one ok&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>_</span> <span class=p>=</span> <span class=nx>result</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>无缓存的mongoStorage， 会在每次调用Save方法的时候， 依次将数据插入到mongodb中。
+很显然这种实现只适合对爬虫速度要求不高的场景， 更合理的方式是使用缓存， 下面是带缓存的存储器实现(部分代码):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>bufferedMongoStorage</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>L</span>            <span class=o>*</span><span class=nx>sync</span><span class=p>.</span><span class=nx>Mutex</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Cli</span>          <span class=o>*</span><span class=nx>qmgo</span><span class=p>.</span><span class=nx>QmgoClient</span>
+</span></span><span class=line><span class=cl>	<span class=nx>buf</span>          <span class=p>[]</span><span class=nx>parser</span><span class=p>.</span><span class=nx>ParseItem</span>
+</span></span><span class=line><span class=cl>	<span class=nx>bufSize</span>      <span class=kt>int</span>
+</span></span><span class=line><span class=cl>	<span class=nx>counter</span>      <span class=nx>counter</span><span class=p>.</span><span class=nx>Counter</span>
+</span></span><span class=line><span class=cl>	<span class=nx>taskKeyField</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 略
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>bufferedMongoStorage</span><span class=p>)</span> <span class=nf>Save</span><span class=p>(</span><span class=nx>items</span> <span class=o>...</span><span class=nx>parser</span><span class=p>.</span><span class=nx>ParseItem</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>s</span><span class=p>.</span><span class=nx>L</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=k>defer</span> <span class=nx>s</span><span class=p>.</span><span class=nx>L</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>items</span><span class=p>)</span> <span class=p>&gt;</span> <span class=nx>s</span><span class=p>.</span><span class=nx>bufSize</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;number of items too large(larger than the max bufSize), either increase storage bufSize or decrease number of items&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>items</span><span class=p>)</span> <span class=p>&gt;</span> <span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>bufSize</span> <span class=o>-</span> <span class=nb>len</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>buf</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>s</span><span class=p>.</span><span class=nf>flush</span><span class=p>();</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>s</span><span class=p>.</span><span class=nx>buf</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>buf</span><span class=p>,</span> <span class=nx>items</span><span class=o>...</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>break</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 略
+</span></span></span></code></pre></td></tr></table></div></div><p>bufferedMongoStorage会对将要导入的数据进行判断：</p><ul><li>如果要导入的数据量大于最大缓存， 那么直接返会错误</li><li>如果要导入的数据量已经大于缓存的剩余空间， 那么直接促发flush， flush会将缓存buf中数据批量导入到mongodb， flush完成后buf会被清空</li><li>否则， 直接追加到缓存中并退出循环</li></ul><blockquote><p>之所以使用for循环的意义在于， 上诉的第二步只是把缓存中的数据写到mongo， items还没有被写入， 所以需要执行下次操作， 将它们加入到缓存中</p></blockquote><p>由于flush的触发条件是缓存已满或者将满的情况， 那么如果没有新的数据导入到缓存中， 那么缓存中的数据就会一直驻留， 所以我们需要某种机制来解决数据驻留的情况：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>NewBufferedMongoStorage</span><span class=p>(</span><span class=o>...</span><span class=p>)</span> <span class=o>*</span><span class=nx>bufferedMongoStorage</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=p>(</span><span class=nx>略</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>ticker</span> <span class=o>:=</span> <span class=nx>time</span><span class=p>.</span><span class=nf>NewTicker</span><span class=p>(</span><span class=nx>autoFlushInterval</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>go</span> <span class=kd>func</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>t</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>ticker</span><span class=p>.</span><span class=nx>C</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;auto flush triggered at %v&#34;</span><span class=p>,</span> <span class=nx>t</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=nx>store</span><span class=p>.</span><span class=nf>flush</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=p>}()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>store</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>解决的方案也很简单， 利用定时器定时触发flush即可</p><h2 id=实现分布式任务计数>实现分布式任务计数</h2><p>以python的scrapy为例， 他会在将request加入队列的时候统计任务数量：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>enqueue_request</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>request</span><span class=p>:</span> <span class=n>Request</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=ow>not</span> <span class=n>request</span><span class=o>.</span><span class=n>dont_filter</span> <span class=ow>and</span> <span class=bp>self</span><span class=o>.</span><span class=n>df</span><span class=o>.</span><span class=n>request_seen</span><span class=p>(</span><span class=n>request</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>df</span><span class=o>.</span><span class=n>log</span><span class=p>(</span><span class=n>request</span><span class=p>,</span> <span class=bp>self</span><span class=o>.</span><span class=n>spider</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>        <span class=n>dqok</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>_dqpush</span><span class=p>(</span><span class=n>request</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>assert</span> <span class=bp>self</span><span class=o>.</span><span class=n>stats</span> <span class=ow>is</span> <span class=ow>not</span> <span class=kc>None</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>dqok</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>stats</span><span class=o>.</span><span class=n>inc_value</span><span class=p>(</span><span class=s2>&#34;scheduler/enqueued/disk&#34;</span><span class=p>,</span> <span class=n>spider</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>spider</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>_mqpush</span><span class=p>(</span><span class=n>request</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>stats</span><span class=o>.</span><span class=n>inc_value</span><span class=p>(</span><span class=s2>&#34;scheduler/enqueued/memory&#34;</span><span class=p>,</span> <span class=n>spider</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>spider</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>stats</span><span class=o>.</span><span class=n>inc_value</span><span class=p>(</span><span class=s2>&#34;scheduler/enqueued&#34;</span><span class=p>,</span> <span class=n>spider</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>spider</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>True</span>
+</span></span></code></pre></td></tr></table></div></div><p>然后stats是存储在内存中的一个字典， 这种实现方式也存在以下问题：</p><ul><li>相比于请求数， 其实我更关心完成数量， 特别是当我需要重试请求， 或者有带缓存的存储器的时候；请求数量不是一个核心指标</li><li>更重要的一点是， 在分布式场景下 ，基于worker的内存计数显然是不行的
+顺带提一嘴，scrapy的计数函数inc_value并没有锁， 当然原因在于它的schduler的入队操作并不是并发实现的</li></ul><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>inc_value</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=p>,</span> <span class=n>key</span><span class=p>:</span> <span class=nb>str</span><span class=p>,</span> <span class=n>count</span><span class=p>:</span> <span class=nb>int</span> <span class=o>=</span> <span class=mi>1</span><span class=p>,</span> <span class=n>start</span><span class=p>:</span> <span class=nb>int</span> <span class=o>=</span> <span class=mi>0</span><span class=p>,</span> <span class=n>spider</span><span class=p>:</span> <span class=n>Optional</span><span class=p>[</span><span class=n>Spider</span><span class=p>]</span> <span class=o>=</span> <span class=kc>None</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>d</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>_stats</span>
+</span></span><span class=line><span class=cl>        <span class=n>d</span><span class=p>[</span><span class=n>key</span><span class=p>]</span> <span class=o>=</span> <span class=n>d</span><span class=o>.</span><span class=n>setdefault</span><span class=p>(</span><span class=n>key</span><span class=p>,</span> <span class=n>start</span><span class=p>)</span> <span class=o>+</span> <span class=n>count</span>
+</span></span></code></pre></td></tr></table></div></div><p>Ok, 言归正转，总而言之我需要一个可以在分布式场景下完成任务完成计数的功能， 一个很容易想到的解决方案就是redis的<a class=link href>INCR操作</a>, incr会以并发安全的方式为key加上1， 这样结合gocrawler的worker的AfterSave生命周期函数（添加一个调用redis的incr函数的hook）， 我就可以实现一个不错的分布式计数功能。<br>但问题是， 如果我用的是带缓存的存储器， 然后实现的是批量存储呢？如果存储不会失败， 那么使用生命周期函数统计数量， 然后多次调用INCR似乎也不是不行， 但是不管是存储不会失败还是多次调用INCR都不是鲁棒性很高的操作，理想情况是在发生flush的情况下， 对flush的数量进行单次计数才是最完美的。但是redis除了incr是并发安全之外，常规的修改计数的方法一定会涉及get和put操作， 所以它不是并发安全的， 所以需要使用redis的事务：</p><blockquote><p>这里我直接用了官方示例， 稍微调整一下来实现了这个功能</p></blockquote><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=o>...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>c</span> <span class=o>*</span><span class=nx>redisTaskCounters</span><span class=p>)</span> <span class=nf>Incr</span><span class=p>(</span><span class=nx>key</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>increment</span> <span class=kt>int64</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// transaction
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=nx>key</span> <span class=p>=</span> <span class=nx>c</span><span class=p>.</span><span class=nx>prefix</span> <span class=o>+</span> <span class=nx>key</span>
+</span></span><span class=line><span class=cl>    <span class=nx>txf</span> <span class=o>:=</span> <span class=kd>func</span><span class=p>(</span><span class=nx>tx</span> <span class=o>*</span><span class=nx>redis</span><span class=p>.</span><span class=nx>Tx</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// Get the current value or zero.
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=nx>n</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>tx</span><span class=p>.</span><span class=nf>Get</span><span class=p>(</span><span class=nx>key</span><span class=p>).</span><span class=nf>Int64</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=o>&amp;&amp;</span> <span class=nx>err</span> <span class=o>!=</span> <span class=nx>redis</span><span class=p>.</span><span class=nx>Nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// Actual operation (local in optimistic lock).
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=nx>atomic</span><span class=p>.</span><span class=nf>AddInt64</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>n</span><span class=p>,</span> <span class=nx>increment</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// Operation is commited only if the watched keys remain unchanged.
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=nx>_</span><span class=p>,</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>tx</span><span class=p>.</span><span class=nf>Pipelined</span><span class=p>(</span><span class=kd>func</span><span class=p>(</span><span class=nx>pipe</span> <span class=nx>redis</span><span class=p>.</span><span class=nx>Pipeliner</span><span class=p>)</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nx>pipe</span><span class=p>.</span><span class=nf>Set</span><span class=p>(</span><span class=nx>key</span><span class=p>,</span> <span class=nx>n</span><span class=p>,</span> <span class=nx>c</span><span class=p>.</span><span class=nx>TTL</span><span class=p>)</span> <span class=c1>// time
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>        <span class=p>})</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1>// Retry if the key has been changed.
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>for</span> <span class=nx>i</span> <span class=o>:=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>i</span> <span class=p>&lt;</span> <span class=nx>maxRetries</span><span class=p>;</span> <span class=nx>i</span><span class=o>++</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nx>err</span> <span class=o>:=</span> <span class=nx>c</span><span class=p>.</span><span class=nx>RCli</span><span class=p>.</span><span class=nf>Watch</span><span class=p>(</span><span class=nx>txf</span><span class=p>,</span> <span class=nx>key</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nx>err</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// Success.
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=k>return</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nx>err</span> <span class=o>==</span> <span class=nx>redis</span><span class=p>.</span><span class=nx>TxFailedErr</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// Optimistic lock lost. Retry.
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=k>continue</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// TODO: igonore any other error.
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>return</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>既然这个计数功能需要统计flush的数据量， 那么我们就把它写在flush函数里面</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>bufferedMongoStorage</span><span class=p>)</span> <span class=nf>flush</span><span class=p>()</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>buf</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>err</span> <span class=o>:=</span> <span class=nx>s</span><span class=p>.</span><span class=nf>insertManyTOMongo</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>buf</span><span class=o>...</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>s</span><span class=p>.</span><span class=nx>counter</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>tc</span> <span class=o>:=</span> <span class=nx>s</span><span class=p>.</span><span class=nf>collectTaskCounts</span><span class=p>(</span><span class=nx>s</span><span class=p>.</span><span class=nx>buf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=nx>s</span><span class=p>.</span><span class=nf>count</span><span class=p>(</span><span class=nx>tc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// update buffer to an empty buffer
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=nx>s</span><span class=p>.</span><span class=nx>buf</span> <span class=p>=</span> <span class=nb>make</span><span class=p>([]</span><span class=nx>parser</span><span class=p>.</span><span class=nx>ParseItem</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=nx>s</span><span class=p>.</span><span class=nx>bufSize</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;Flushed&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>s</span> <span class=o>*</span><span class=nx>bufferedMongoStorage</span><span class=p>)</span> <span class=nf>count</span><span class=p>(</span><span class=nx>tc</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=kt>int64</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>k</span><span class=p>,</span> <span class=nx>v</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>tc</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>s</span><span class=p>.</span><span class=nx>counter</span><span class=p>.</span><span class=nf>Incr</span><span class=p>(</span><span class=nx>k</span><span class=p>,</span> <span class=nx>v</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>collectTaskCounts函数是考虑到缓存队列中可能同时存在多个任务的数据，所以考虑先统计了每个任务对应的数据量</p><h2 id=生命周期函数>生命周期函数</h2><p>目前gocrawler的worker支持的生命周期函数有：</p><ul><li>BeforeRequest</li><li>AfterRequest</li><li>BeforeSave</li><li>AfterSave</li></ul><p>它们的应用场景是怎样的呢？这里以BeforeRequest为例，</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>BeforeRequestHook</span> <span class=kd>func</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>(</span><span class=nx>Signal</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>w</span> <span class=o>*</span><span class=nx>worker</span><span class=p>)</span> <span class=nf>BeforeRequest</span><span class=p>(</span><span class=nx>ctx</span> <span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>,</span> <span class=nx>req</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>(</span><span class=nx>Signal</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=kd>var</span> <span class=nx>sig</span> <span class=nx>Signal</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>BeforeRequestHook</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=nx>w</span><span class=p>.</span><span class=nf>BeforeRequestHook</span><span class=p>(</span><span class=nx>ctx</span><span class=p>,</span> <span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>sig</span> <span class=o>|=</span> <span class=nx>DummySignal</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>sig</span><span class=p>,</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>BeforeRequest会在worker调用Fetch之前被调用：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=o>...</span>
+</span></span><span class=line><span class=cl><span class=nx>w</span><span class=p>.</span><span class=nf>BeforeRequest</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span> <span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nx>resp</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Fetcher</span><span class=p>.</span><span class=nf>Fetch</span><span class=p>(</span><span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=o>...</span>
+</span></span></code></pre></td></tr></table></div></div><p>因为BeforeRequestHook有指向Request的指针， 意味着我们可以在worker发起网络请求之前修改Request的参数， 比如Request的Url， 爬虫任务的目标url通常是规律的， 比如站点网址+ 某种ID或者页码数，而站点网址通常是固定的， 如此一来， 我们在提交任务的时候， 不用写入完整的url， 把补全Url的功能写成一个BeforeRequestHook提交给worker即可， 这样可以在很大程度减少任务队列的存储消耗</p><h3 id=关于signal>关于Signal</h3><p>生命周期函数的第一个返回值是Signal, Siganl是一个8位的flag， 方便用户告诉worker的主流程， 接下来该如何操作
+通过signal, 用户可以控制worker选择直接进行一下轮循环， 或者直接忽略错误， 再或者直接panic错误</p><blockquote><p>生命周期函数是用户外部注入到框架的，所以通过Signal作为桥梁， 让用户拥有控制worker运行流程的能力是很重要的</p></blockquote><h2 id=其他组件>其他组件</h2><p>其他诸如网页解析器， 代理获取， cookie获取， 请求头获取等组件的实现也并不困难, gocrawler同样也提供了相应的接口。
+当然有一个组件其实非常重要，那就是进行网络请求的Fetcher组件</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>type</span> <span class=nx>Fetcher</span> <span class=kd>interface</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Fetch</span><span class=p>(</span><span class=nx>req</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>(</span><span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Response</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>fectcher</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Cli</span>          <span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Client</span>
+</span></span><span class=line><span class=cl>	<span class=nx>CookieGetter</span> <span class=nx>cookie</span><span class=p>.</span><span class=nx>CoookieGetter</span>
+</span></span><span class=line><span class=cl>	<span class=nx>UaGetter</span>     <span class=nx>ua</span><span class=p>.</span><span class=nx>UaGetter</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>NewFectcher</span><span class=p>(</span><span class=nx>timeOut</span> <span class=nx>time</span><span class=p>.</span><span class=nx>Duration</span><span class=p>,</span> <span class=nx>proxyGetter</span> <span class=nx>proxy</span><span class=p>.</span><span class=nx>ProxyGetter</span><span class=p>,</span> <span class=nx>cookieGetter</span> <span class=nx>cookie</span><span class=p>.</span><span class=nx>CoookieGetter</span><span class=p>,</span> <span class=nx>uaGetter</span> <span class=nx>ua</span><span class=p>.</span><span class=nx>UaGetter</span><span class=p>)</span> <span class=o>*</span><span class=nx>fectcher</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>tr</span> <span class=o>:=</span> <span class=nx>http</span><span class=p>.</span><span class=nx>DefaultTransport</span><span class=p>.(</span><span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Transport</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>tr</span><span class=p>.</span><span class=nx>Proxy</span> <span class=p>=</span> <span class=nx>proxyGetter</span><span class=p>.</span><span class=nx>Get</span>
+</span></span><span class=line><span class=cl>	<span class=nx>tr</span><span class=p>.</span><span class=nx>DisableKeepAlives</span> <span class=p>=</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>	<span class=nx>client</span> <span class=o>:=</span> <span class=o>&amp;</span><span class=nx>http</span><span class=p>.</span><span class=nx>Client</span><span class=p>{</span><span class=nx>Transport</span><span class=p>:</span> <span class=nx>tr</span><span class=p>,</span> <span class=nx>Timeout</span><span class=p>:</span> <span class=nx>timeOut</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>f</span> <span class=o>:=</span> <span class=o>&amp;</span><span class=nx>fectcher</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>Cli</span><span class=p>:</span>          <span class=nx>client</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>CookieGetter</span><span class=p>:</span> <span class=nx>cookieGetter</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=nx>UaGetter</span><span class=p>:</span>     <span class=nx>uaGetter</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>f</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>f</span> <span class=o>*</span><span class=nx>fectcher</span><span class=p>)</span> <span class=nf>Fetch</span><span class=p>(</span><span class=nx>r</span> <span class=o>*</span><span class=nx>request</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span> <span class=p>(</span><span class=nx>resp</span> <span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Response</span><span class=p>,</span> <span class=nx>err</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>jar</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>CookieGetter</span><span class=p>.</span><span class=nf>Get</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span><span class=p>,</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>f</span><span class=p>.</span><span class=nx>Cli</span><span class=p>.</span><span class=nx>Jar</span> <span class=p>=</span> <span class=nx>jar</span>
+</span></span><span class=line><span class=cl>	<span class=nx>req</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>http</span><span class=p>.</span><span class=nf>NewRequest</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nx>Method</span><span class=p>,</span> <span class=nx>r</span><span class=p>.</span><span class=nx>URL</span><span class=p>,</span> <span class=kc>nil</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span><span class=p>,</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;get url failed: %w&#34;</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>ua</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>UaGetter</span><span class=p>.</span><span class=nf>Get</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span><span class=p>,</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;get ua failed: %w&#34;</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>req</span><span class=p>.</span><span class=nx>Header</span><span class=p>.</span><span class=nf>Set</span><span class=p>(</span><span class=s>&#34;User-Agent&#34;</span><span class=p>,</span> <span class=nx>ua</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>resp</span><span class=p>,</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Cli</span><span class=p>.</span><span class=nf>Do</span><span class=p>(</span><span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>nil</span><span class=p>,</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>gocrawler自带了一个基础的默认fetcher；可以看到NewFectcher的依赖基本上都是接口， 意味着用户可以自行替换所需要的依赖， 增加了框架的灵活性
+默认fetcher会调用net/http中的请求函数来发起网络请求， 不过官方库的请求函数为了追求性能， 会复用连接， 但是很多爬虫场景下， 我们会希望我们每次的请求都是一个新的连接，这样就可以每次调用不同的代理， 所以在实例fetcher的时候， 我们把.DisableKeepAlives设置成了false</p><h2 id=worker完整工作流>worker完整工作流</h2><p>有了前面的铺垫， 我们来看一下worker的Run入口函数的实现：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>w</span> <span class=o>*</span><span class=nx>worker</span><span class=p>)</span> <span class=nf>Run</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>ctx</span><span class=p>,</span> <span class=nx>cancel</span> <span class=o>:=</span> <span class=nx>context</span><span class=p>.</span><span class=nf>WithTimeout</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>		<span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>		<span class=nx>w</span><span class=p>.</span><span class=nx>MaxRunTime</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>	<span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>defer</span> <span class=nf>cancel</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>i</span> <span class=o>:=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>i</span> <span class=p>&lt;</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Workers</span><span class=p>;</span> <span class=nx>i</span><span class=o>++</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>go</span> <span class=nf>singleRun</span><span class=p>(</span><span class=nx>w</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=o>&lt;-</span><span class=nx>ctx</span><span class=p>.</span><span class=nf>Done</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Run函数其实就是并发开启多个singleRun来执行具体的爬虫流程， 同时通过带TimeOut的上下文， 我们会让worker在MaxRunTime之后，退出主程序；最后附上singleRun的实现， 整体的逻辑还是比较简单的</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span><span class=lnt>83
+</span><span class=lnt>84
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=nf>singleRun</span><span class=p>(</span><span class=nx>w</span> <span class=o>*</span><span class=nx>worker</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>w</span><span class=p>.</span><span class=nx>Limiter</span><span class=p>.</span><span class=nf>Wait</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>TODO</span><span class=p>())</span>
+</span></span><span class=line><span class=cl>		<span class=nx>req</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Scheduler</span><span class=p>.</span><span class=nf>Pull</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>req</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>continue</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=kd>var</span> <span class=nx>reqKey</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>UseVisit</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>AddtionalHashKeys</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>reqKey</span> <span class=p>=</span> <span class=nx>req</span><span class=p>.</span><span class=nf>Hash</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>reqKey</span> <span class=p>=</span> <span class=nx>req</span><span class=p>.</span><span class=nf>Hash</span><span class=p>(</span><span class=nx>w</span><span class=p>.</span><span class=nx>AddtionalHashKeys</span><span class=o>...</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Vister</span><span class=p>.</span><span class=nf>IsVisited</span><span class=p>(</span><span class=nx>reqKey</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>continue</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>originReq</span> <span class=o>:=</span> <span class=nx>req</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=c1>// Fetch
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=nx>w</span><span class=p>.</span><span class=nf>BeforeRequest</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span> <span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=nx>resp</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Fetcher</span><span class=p>.</span><span class=nf>Fetch</span><span class=p>(</span><span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;request failed: %v&#34;</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>req</span><span class=p>.</span><span class=nx>Retry</span> <span class=p>&lt;</span> <span class=nx>w</span><span class=p>.</span><span class=nx>MaxRetries</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>originReq</span><span class=p>.</span><span class=nx>Retry</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>				<span class=nx>w</span><span class=p>.</span><span class=nx>Scheduler</span><span class=p>.</span><span class=nf>Push</span><span class=p>(</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>NSQ_PUSH</span><span class=p>,</span> <span class=nx>originReq</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;too many fetch failures for request:%s, exceed max retries: %d&#34;</span><span class=p>,</span> <span class=nx>req</span><span class=p>.</span><span class=nx>URL</span><span class=p>,</span> <span class=nx>w</span><span class=p>.</span><span class=nx>MaxRetries</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=k>continue</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>resp</span><span class=p>.</span><span class=nx>StatusCode</span> <span class=o>!=</span> <span class=nx>http</span><span class=p>.</span><span class=nx>StatusOK</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>originReq</span><span class=p>.</span><span class=nx>Retry</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>			<span class=nx>w</span><span class=p>.</span><span class=nx>Scheduler</span><span class=p>.</span><span class=nf>Push</span><span class=p>(</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>NSQ_PUSH</span><span class=p>,</span> <span class=nx>originReq</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>continue</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=c1>// Parse
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=nx>parseResult</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Parser</span><span class=p>.</span><span class=nf>Parse</span><span class=p>(</span><span class=nx>resp</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;parse failed for request: %s, error: %v&#34;</span><span class=p>,</span> <span class=nx>req</span><span class=p>.</span><span class=nx>URL</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=nx>originReq</span><span class=p>.</span><span class=nx>Retry</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>			<span class=nx>w</span><span class=p>.</span><span class=nx>Scheduler</span><span class=p>.</span><span class=nf>Push</span><span class=p>(</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>NSQ_PUSH</span><span class=p>,</span> <span class=nx>originReq</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>continue</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=c1>// New Requests
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>if</span> <span class=nx>parseResult</span><span class=p>.</span><span class=nx>Requests</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=o>&amp;&amp;</span> <span class=nb>len</span><span class=p>(</span><span class=nx>parseResult</span><span class=p>.</span><span class=nx>Requests</span><span class=p>)</span> <span class=p>&gt;</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>req</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>parseResult</span><span class=p>.</span><span class=nx>Requests</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>w</span><span class=p>.</span><span class=nx>Scheduler</span><span class=p>.</span><span class=nf>Push</span><span class=p>(</span><span class=nx>nsq</span><span class=p>.</span><span class=nx>NSQ_PUSH</span><span class=p>,</span> <span class=nx>req</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=c1>// Save
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>if</span> <span class=nx>parseResult</span><span class=p>.</span><span class=nx>Items</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=o>&amp;&amp;</span> <span class=nb>len</span><span class=p>(</span><span class=nx>parseResult</span><span class=p>.</span><span class=nx>Items</span><span class=p>)</span> <span class=p>&gt;</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>SaveRequestData</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>p_item</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>parseResult</span><span class=p>.</span><span class=nx>Items</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>					<span class=k>for</span> <span class=nx>dk</span><span class=p>,</span> <span class=nx>dv</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>req</span><span class=p>.</span><span class=nx>Data</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>						<span class=nx>p_item</span><span class=p>[</span><span class=nx>dk</span><span class=p>]</span> <span class=p>=</span> <span class=nx>dv</span>
+</span></span><span class=line><span class=cl>					<span class=p>}</span>
+</span></span><span class=line><span class=cl>				<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=nx>w</span><span class=p>.</span><span class=nf>BeforeSave</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span> <span class=nx>parseResult</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nx>Store</span><span class=p>.</span><span class=nf>Save</span><span class=p>(</span><span class=nx>parseResult</span><span class=p>.</span><span class=nx>Items</span><span class=o>...</span><span class=p>);</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;item saved failed err: %v;items: &#34;</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>				<span class=k>continue</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=nx>w</span><span class=p>.</span><span class=nf>AfterSave</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>(),</span> <span class=nx>parseResult</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>w</span><span class=p>.</span><span class=nx>UseVisit</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>w</span><span class=p>.</span><span class=nx>Vister</span><span class=p>.</span><span class=nf>SetVisitted</span><span class=p>(</span><span class=nx>reqKey</span><span class=p>,</span> <span class=nx>w</span><span class=p>.</span><span class=nx>VisterTTL</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这里还需要追加提到的一点是， 如果用户决定使用过滤器（在一定时间周期内， 不想反复地抓取相同数据）， 那么可以通过下面的Option函数添加过滤器</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=nf>WithVisiter</span><span class=p>(</span><span class=nx>v</span> <span class=nx>visit</span><span class=p>.</span><span class=nx>Visit</span><span class=p>,</span> <span class=nx>ttl</span> <span class=nx>time</span><span class=p>.</span><span class=nx>Duration</span><span class=p>)</span> <span class=nx>Option</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=kd>func</span><span class=p>(</span><span class=nx>opts</span> <span class=o>*</span><span class=nx>options</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>opts</span><span class=p>.</span><span class=nx>Vister</span> <span class=p>=</span> <span class=nx>v</span>
+</span></span><span class=line><span class=cl>		<span class=nx>opts</span><span class=p>.</span><span class=nx>UseVisit</span> <span class=p>=</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>		<span class=nx>opts</span><span class=p>.</span><span class=nx>VisiterTTL</span> <span class=p>=</span> <span class=nx>ttl</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>worker的所有外部依赖都是基于Option模式添加的
+然后如果UseVisit是true的话， worker会在发起请求前先判断Request是不是已经Visit过了, 如果开启UseVisit其有访问过， 那么就会直接进入下轮循环
+gocralwer提供了一个基于redis的Vister的实现，默认实现并没有使用BloomFilter， 如果数据量非常大， 且不太在意部分Request会被误判为访问过(hash冲突)的话， 也可以自己实现一个基于BloomFilter(redis也是支持的)</p></blockquote></section><footer class=article-footer><section class=article-tags><a href=/tags/%E7%88%AC%E8%99%AB%E6%A1%86%E6%9E%B6/>爬虫框架</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/golang%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/><div class=article-details><h2 class=article-title>golang代码生成</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2024 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
