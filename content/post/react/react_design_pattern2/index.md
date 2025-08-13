@@ -1,26 +1,92 @@
-# 
-
 ---
-
-title: React常用设计模式(二)
+title: "React常用设计模式(新)"
 description: 
-slug: 
-date: 2025-08-12
+date: 2025-08-13T07:45:54Z
 categories:
     - web开发
 tags:
     - react
-weight: 1       
-
+weight: 1 
 ---
 
-## React常用设计模式(二)
+## Compound pattern
+这个模式的它能解决怎样的问题? 其实没有解决什么问题，只是把需要共用相同state的组件用一种合理的方式组合在一起罢了。
 
-### HOC
+我们先看一下使用了Compound模式的组件代码：
+
+```tsx
+import React from "react";
+import { FlyOut } from "./FlyOut";
+
+export default function FlyoutMenu() {
+  return (
+    <FlyOut>
+      <FlyOut.Toggle />
+      <FlyOut.List>
+        <FlyOut.Item>Edit</FlyOut.Item>
+        <FlyOut.Item>Delete</FlyOut.Item>
+      </FlyOut.List>
+    </FlyOut>
+  );
+}
+```
+
+> 这个模式出现在很多地方，比如Shadcn中的所有组件，也大多是基于多个更小的组件组合起来的。 不一定非得使用Flyout.xxxx来表示子组件
+>
+
+Toggle，List， Item组件都复用了Flyout的状态value。
+
+Flyout的定义：
+
+```tsx
+const FlyOutContext = createContext();
+
+function Flyout({children}) {
+  const [value, setValue] = useState(false)
+
+  <FlyOutContext.Provider value={{value, setValue}}>
+    {chirdren}
+  </FlyOutContext.Provider>
+}
+```
 
 
+然后以Toggle组件为例：
 
-#### 基础示例
+```tsx
+Flyout.Toggle = ({chidren}) => {
+  const {value, setValue} = useContext(FlyOutContext)
+
+  return  (
+     <div onClick={() => setVale(!value)}>
+      <Icon />
+    </div>
+  )
+}
+```
+
+其他的组件也是用一同样的方式获取到value， 这个不赘述了；这里需要追加的一点的是， 隐式传递状态的方式不止上面的这种， 还可以通过React.cloneElement来实现, 比如：
+
+```tsx
+export function FlyOut(chilren) {
+  const [value, setValue] = React.useState(false);
+
+  return (
+    <div>
+      {React.Children.map(children, child =>
+        React.cloneElement(child, { value, setValue })
+      )}
+    </div>
+  );
+}
+```
+
+简单来说就是直接把父组件的state作为属性附加到了FlyOut的直接子元素上，所以对于嵌套更深的组件， 这种方式就是不太行， 同时需要注意属性名冲突的问题  
+
+
+## HOC
+
+### 基础示例
 
 ```typescript
 import React from 'react';
@@ -229,7 +295,7 @@ export default withAsync;
 
 
 
-#### 多个HOC复用的情况
+### 多个HOC复用的情况
 
 compose函数(用来结合多个HOC):
 
@@ -263,7 +329,7 @@ const EnhancedComponent = compose(
 
 
 
-#### Render props替代HOC场景
+### Render props替代HOC场景
 
 譬如实现条件渲染：
 
@@ -321,11 +387,9 @@ context适合更加复杂（比如深度嵌套）的状态共享
 
 
 
+## Props Collection 模式
 
-
-### Props Collection 模式
-
-#### 基础用法
+### 基础用法
 
 鼠标交互逻辑
 
@@ -357,7 +421,7 @@ function MouseTracker() {
 
 简单来讲Props collection就是把相关的props集合在了一起， 比如上面拿到useMouse, 把位置相关的， 以及和这个位置先关的action组合在了一起
 
-#### 结合Render Props
+### 结合Render Props
 
 ```jsx
 function Tooltip({ children, content }) {
@@ -388,7 +452,7 @@ function App() {
 }
 ```
 
-#### 多种Props集合
+### 多种Props集合
 
 ```jsx
 function useHover() {
@@ -438,7 +502,7 @@ function Button() {
 }
 ```
 
-#### Props Getter 模式
+### Props Getter 模式
 
 不直接返回Props对象， 而是说利用闭包返回可以生成Props的函数， 这样会比较自由
 
@@ -484,11 +548,11 @@ function App() {
 
 
 
-### State Reducer模式
+## State Reducer模式
 
 State Reducer 模式的核心思想是：​**​组件仍然管理自己的状态，但将状态更新的决定权通过 reducer 函数暴露给使用者​**​
 
-#### 传统Reducer
+### 传统Reducer
 
 ```jsx
 function toggleReducer(state, action) {
@@ -511,7 +575,7 @@ function useToggle() {
 }
 ```
 
-#### 添加State Reducer
+### 添加State Reducer
 
 ```jsx
 function useToggle({ reducer = toggleReducer } = {}) {
@@ -581,7 +645,7 @@ function LoggingForm() {
 
 
 
-#### 多个reducer组合
+### 多个reducer组合
 
 ```jsx
 function composeReducers(...reducers) {
@@ -613,7 +677,7 @@ function useAdvancedToggle() {
 }
 ```
 
-### 总结
+## 总结
 
 其实上面的设计模式， 核心就是围绕
 
@@ -622,5 +686,3 @@ function useAdvancedToggle() {
 2 逻辑复用， 比如HOC以及State Reducer;  前提是可复用逻辑本身和目标是存在正交性的；当然严格以上来说逻辑复用其实也是关注点分离的一种表现形式， 把重复的逻辑和主逻辑抽离出来
 
 然后,之所以react的设计模式都需要强调关注点分类的一个重要原因在于： react本身在设计上将UI和逻辑糅合在了一起（React Hook）
-
-
