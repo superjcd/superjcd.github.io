@@ -14,3 +14,5 @@ hasCJKLanguage = false
 
 # Change it to your Disqus shortname before using
 disqusShortname = "hugo-theme-stack"
+
+# 说明: 锁定hugo版本测试
