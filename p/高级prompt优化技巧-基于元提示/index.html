@@ -1,0 +1,426 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content='我们知道好的prompt会直接关系到LLM应用的质量，那么如何通过提示工程获得更好的Prompt会是一件非常重要且有意义的事情。\n在实现某种调优之前， 我们首先需要搞清楚一件事情， 如何去评估某一项对Prompt进行调优的工程是不是真的是有效的\n实现对Query Engine的评估 实现的方式说起来很简单，以QA场景为例， 假定我们有一个人为标注过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。\nQuestion Answer How old is Biden now Biden is 81 years old &mldr;. &mldr; &mldr;. &mldr;. 当然这里的问题在于， 我如何廉价地获取类似上面的这种格式的数据集呢？要知道人工标注是非常昂贵的。\n一个聪明的方案是: 相较于基于问题给出回答， 何不如基于回答来获取问题呢？后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)\n具体代码实现&ndash;以llamaindex为例子 准备\n1 2 3 4 5 6 7 8 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle 老样子， 贫穷的我依然选择llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）\n获取数据:\n1 2 3 4 5 6 7 from llama_index.readers.file import PDFReade from llama_index.core import Document loader = PDFReader() docs0 = loader.load_data(file="./data/llama2.pdf") doc_text = "\\n\\n".join([d.get_content() for d in docs0]) docs = [Document(text=doc_text)] llama2.pdf是llama2的论文，下载地址：https://arxiv.org/pdf/2307.09288\n'><title>高级Prompt优化技巧-基于元提示</title>
+<link rel=canonical href=https://superjcd.github.io/p/%E9%AB%98%E7%BA%A7prompt%E4%BC%98%E5%8C%96%E6%8A%80%E5%B7%A7-%E5%9F%BA%E4%BA%8E%E5%85%83%E6%8F%90%E7%A4%BA/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="高级Prompt优化技巧-基于元提示"><meta property='og:description' content='我们知道好的prompt会直接关系到LLM应用的质量，那么如何通过提示工程获得更好的Prompt会是一件非常重要且有意义的事情。\n在实现某种调优之前， 我们首先需要搞清楚一件事情， 如何去评估某一项对Prompt进行调优的工程是不是真的是有效的\n实现对Query Engine的评估 实现的方式说起来很简单，以QA场景为例， 假定我们有一个人为标注过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。\nQuestion Answer How old is Biden now Biden is 81 years old &mldr;. &mldr; &mldr;. &mldr;. 当然这里的问题在于， 我如何廉价地获取类似上面的这种格式的数据集呢？要知道人工标注是非常昂贵的。\n一个聪明的方案是: 相较于基于问题给出回答， 何不如基于回答来获取问题呢？后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)\n具体代码实现&ndash;以llamaindex为例子 准备\n1 2 3 4 5 6 7 8 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle 老样子， 贫穷的我依然选择llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）\n获取数据:\n1 2 3 4 5 6 7 from llama_index.readers.file import PDFReade from llama_index.core import Document loader = PDFReader() docs0 = loader.load_data(file="./data/llama2.pdf") doc_text = "\\n\\n".join([d.get_content() for d in docs0]) docs = [Document(text=doc_text)] llama2.pdf是llama2的论文，下载地址：https://arxiv.org/pdf/2307.09288\n'><meta property='og:url' content='https://superjcd.github.io/p/%E9%AB%98%E7%BA%A7prompt%E4%BC%98%E5%8C%96%E6%8A%80%E5%B7%A7-%E5%9F%BA%E4%BA%8E%E5%85%83%E6%8F%90%E7%A4%BA/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='提示工程'><meta property='article:published_time' content='2024-04-30T00:00:00+00:00'><meta property='article:modified_time' content='2024-04-30T00:00:00+00:00'><meta name=twitter:title content="高级Prompt优化技巧-基于元提示"><meta name=twitter:description content='我们知道好的prompt会直接关系到LLM应用的质量，那么如何通过提示工程获得更好的Prompt会是一件非常重要且有意义的事情。\n在实现某种调优之前， 我们首先需要搞清楚一件事情， 如何去评估某一项对Prompt进行调优的工程是不是真的是有效的\n实现对Query Engine的评估 实现的方式说起来很简单，以QA场景为例， 假定我们有一个人为标注过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。\nQuestion Answer How old is Biden now Biden is 81 years old &mldr;. &mldr; &mldr;. &mldr;. 当然这里的问题在于， 我如何廉价地获取类似上面的这种格式的数据集呢？要知道人工标注是非常昂贵的。\n一个聪明的方案是: 相较于基于问题给出回答， 何不如基于回答来获取问题呢？后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)\n具体代码实现&ndash;以llamaindex为例子 准备\n1 2 3 4 5 6 7 8 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle 老样子， 贫穷的我依然选择llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）\n获取数据:\n1 2 3 4 5 6 7 from llama_index.readers.file import PDFReade from llama_index.core import Document loader = PDFReader() docs0 = loader.load_data(file="./data/llama2.pdf") doc_text = "\\n\\n".join([d.get_content() for d in docs0]) docs = [Document(text=doc_text)] llama2.pdf是llama2的论文，下载地址：https://arxiv.org/pdf/2307.09288\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#实现对query-engine的评估>实现对Query Engine的评估</a><ol><li><a href=#具体代码实现--以llamaindex为例子>具体代码实现&ndash;以llamaindex为例子</a></li></ol></li><li><a href=#使用meta-prompt来调优prompt>使用Meta Prompt来调优prompt</a></li><li><a href=#参考>参考</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/llm/>LLM</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/%E9%AB%98%E7%BA%A7prompt%E4%BC%98%E5%8C%96%E6%8A%80%E5%B7%A7-%E5%9F%BA%E4%BA%8E%E5%85%83%E6%8F%90%E7%A4%BA/>高级Prompt优化技巧-基于元提示</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Apr 30, 2024</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>5 minute read</time></div></footer></div></header><section class=article-content><p>我们知道好的prompt会直接关系到LLM应用的质量，那么如何通过提示工程获得更好的Prompt会是一件非常重要且有意义的事情。<br>在实现某种调优之前， 我们首先需要搞清楚一件事情， 如何去评估某一项对Prompt进行调优的工程是不是真的是有效的</p><h2 id=实现对query-engine的评估>实现对Query Engine的评估</h2><p>实现的方式说起来很简单，以QA场景为例， 假定我们有一个人为标注过的数据集，它包含Question列和Answer列（见下表）， 然后我们用LLM回答Question，得到一个预测回答， 然后对照真实Answer和预测Anwser是不是一致或者近似一致就好了。</p><div class=table-wrapper><table><thead><tr><th>Question</th><th>Answer</th></tr></thead><tbody><tr><td>How old is Biden now</td><td>Biden is 81 years old</td></tr><tr><td>&mldr;.</td><td>&mldr;</td></tr><tr><td>&mldr;.</td><td>&mldr;.</td></tr></tbody></table></div><p>当然这里的问题在于， <strong>我如何廉价地获取类似上面的这种格式的数据集呢</strong>？要知道人工标注是非常昂贵的。<br>一个聪明的方案是: 相较于基于问题给出回答， 何不如基于回答来获取问题呢？后者在实现上， 对LLM来说是比较容易的， 所以只要通过LLM来解析文本， 并基于文本内容来由LLM输出对应的问题， 我们就能够获得一个类似于人为标注过的"黄金数据集"(Golden Dataset)</p><h3 id=具体代码实现--以llamaindex为例子>具体代码实现&ndash;以llamaindex为例子</h3><p>准备</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>Settings</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.llms.ollama</span> <span class=kn>import</span> <span class=n>Ollama</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.embeddings.huggingface</span> <span class=kn>import</span> <span class=n>HuggingFaceEmbedding</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>llm</span> <span class=o>=</span> <span class=n>Ollama</span><span class=p>(</span><span class=n>model</span><span class=o>=</span><span class=s2>&#34;llama3&#34;</span><span class=p>,</span> <span class=n>request_timeout</span><span class=o>=</span><span class=mf>60.0</span><span class=p>,</span> <span class=n>temperature</span><span class=o>=</span><span class=mf>0.1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>Settings</span><span class=o>.</span><span class=n>llm</span> <span class=o>=</span> <span class=n>llm</span>
+</span></span><span class=line><span class=cl><span class=n>embed_modle</span> <span class=o>=</span>  <span class=n>HuggingFaceEmbedding</span><span class=p>(</span><span class=s2>&#34;BAAI/bge-base-en-v1.5&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>Settings</span><span class=o>.</span><span class=n>embed_model</span> <span class=o>=</span> <span class=n>embed_modle</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>老样子， 贫穷的我依然选择llama3开局 🤡（理想情况下肯定是上最新版本的chatgpt会更好）</p></blockquote><p>获取数据:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.readers.file</span> <span class=kn>import</span> <span class=n>PDFReade</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>Document</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>loader</span> <span class=o>=</span> <span class=n>PDFReader</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>docs0</span> <span class=o>=</span> <span class=n>loader</span><span class=o>.</span><span class=n>load_data</span><span class=p>(</span><span class=n>file</span><span class=o>=</span><span class=s2>&#34;./data/llama2.pdf&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>doc_text</span> <span class=o>=</span> <span class=s2>&#34;</span><span class=se>\n\n</span><span class=s2>&#34;</span><span class=o>.</span><span class=n>join</span><span class=p>([</span><span class=n>d</span><span class=o>.</span><span class=n>get_content</span><span class=p>()</span> <span class=k>for</span> <span class=n>d</span> <span class=ow>in</span> <span class=n>docs0</span><span class=p>])</span>
+</span></span><span class=line><span class=cl><span class=n>docs</span> <span class=o>=</span> <span class=p>[</span><span class=n>Document</span><span class=p>(</span><span class=n>text</span><span class=o>=</span><span class=n>doc_text</span><span class=p>)]</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>llama2.pdf是llama2的论文，下载地址：<a class=link href=https://arxiv.org/pdf/2307.09288 target=_blank rel=noopener>https://arxiv.org/pdf/2307.09288</a></p></blockquote><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.node_parser</span> <span class=kn>import</span> <span class=n>SentenceSplitter</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>node_parser</span> <span class=o>=</span> <span class=n>SentenceSplitter</span><span class=p>(</span><span class=n>chunk_size</span><span class=o>=</span><span class=mi>1024</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>base_nodes</span> <span class=o>=</span> <span class=n>node_parser</span><span class=o>.</span><span class=n>get_nodes_from_documents</span><span class=p>(</span><span class=n>docs</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>这里我们对文档按句子进行切分</p></blockquote><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>VectorStoreIndex</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>index</span> <span class=o>=</span> <span class=n>VectorStoreIndex</span><span class=p>(</span><span class=n>base_nodes</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>query_engine</span> <span class=o>=</span> <span class=n>index</span><span class=o>.</span><span class=n>as_query_engine</span><span class=p>(</span><span class=n>similarity_top_k</span><span class=o>=</span><span class=mi>2</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>生成模拟的"黄金数据集"</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>nest_asyncio</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>nest_asyncio</span><span class=o>.</span><span class=n>apply</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>dataset_generator</span> <span class=o>=</span> <span class=n>DatasetGenerator</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>base_nodes</span><span class=p>[:</span><span class=mi>20</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>show_progress</span><span class=o>=</span><span class=kc>True</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>num_questions_per_chunk</span><span class=o>=</span><span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>eval_dataset</span> <span class=o>=</span> <span class=k>await</span> <span class=n>dataset_generator</span><span class=o>.</span><span class=n>agenerate_dataset_from_nodes</span><span class=p>(</span><span class=n>num</span><span class=o>=</span><span class=mi>60</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>nest_asyncio.apply()是为了方便我们在jupyterlab中运行异步代码， 上面的例子其实不需要（因为jupyterlab本身就是运行在一个eventloop上的）， 但是后面会用到</p></blockquote><p><code>eval_dataset</code>就是我们通过LLM获取的数据集， 如果你还是很好奇DatasetGenerator实现原理， 你只要看一下它的prompt就知道了：</p><blockquote><p>如果你不感兴趣的话， 这部分可以跳过</p></blockquote><p>首先我们准备一个可以优美展示prompt的辅助函数：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>IPython.display</span> <span class=kn>import</span> <span class=n>Markdown</span><span class=p>,</span> <span class=n>display</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>display_prompt_dict</span><span class=p>(</span><span class=n>prompts_dict</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>k</span><span class=p>,</span> <span class=n>p</span> <span class=ow>in</span> <span class=n>prompts_dict</span><span class=o>.</span><span class=n>items</span><span class=p>():</span>
+</span></span><span class=line><span class=cl>        <span class=n>text_md</span> <span class=o>=</span> <span class=sa>f</span><span class=s2>&#34;**Prompt Key**: </span><span class=si>{</span><span class=n>k</span><span class=si>}</span><span class=s2>&lt;br&gt;&#34;</span> <span class=sa>f</span><span class=s2>&#34;**Text:** &lt;br&gt;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>display</span><span class=p>(</span><span class=n>Markdown</span><span class=p>(</span><span class=n>text_md</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>        <span class=nb>print</span><span class=p>(</span><span class=n>p</span><span class=o>.</span><span class=n>get_template</span><span class=p>())</span>
+</span></span><span class=line><span class=cl>        <span class=n>display</span><span class=p>(</span><span class=n>Markdown</span><span class=p>(</span><span class=s2>&#34;&lt;br&gt;&lt;br&gt;&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>然后查看dataset_generator的prompt:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>display_prompt_dict</span><span class=p>(</span><span class=n>dataset_generator</span><span class=o>.</span><span class=n>get_prompts</span><span class=p>())</span>
+</span></span></code></pre></td></tr></table></div></div><p>输出：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Context information is below.
+</span></span><span class=line><span class=cl>---------------------
+</span></span><span class=line><span class=cl>{context_str}
+</span></span><span class=line><span class=cl>---------------------
+</span></span><span class=line><span class=cl>Given the context information and not prior knowledge.
+</span></span><span class=line><span class=cl>generate only questions based on the below query.
+</span></span><span class=line><span class=cl>{query_str}
+</span></span></code></pre></td></tr></table></div></div><p>See？我们其实是让大模型根据文本来生成问题</p><h2 id=使用meta-prompt来调优prompt>使用Meta Prompt来调优prompt</h2><p>首先这个idea来自于这篇论文：<a class=link href=https://arxiv.org/pdf/2309.03409 target=_blank rel=noopener>https://arxiv.org/pdf/2309.03409</a><br>至于实现， 简单来讲， 就是通过迭代的方式， 让Meta Prompt(元提示)基于现有的prompt表现(是一个随着迭代不断扩展的列表， 它会成为Meta Prompt的一部分来做为上下文的一部分)， 来生成更好的提示来改善我们的初始prompt<br>首先我们来看一下我们的元提示长什么样：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>meta_tmpl_str</span> <span class=o>=</span> <span class=s2>&#34;&#34;&#34;</span><span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span><span class=s2>Your task is to generate the instruction &lt;INS&gt;. Below are some previous instructions with their scores.
+</span></span></span><span class=line><span class=cl><span class=s2>The score ranges from 1 to 5.
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2></span><span class=si>{prev_instruction_score_pairs}</span><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>Below we show the task. The &lt;INS&gt; tag is prepended to the below prompt template, e.g. as follows:
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>######
+</span></span></span><span class=line><span class=cl><span class=s2>&lt;INS&gt;
+</span></span></span><span class=line><span class=cl><span class=s2></span><span class=si>{prompt_tmpl_str}</span><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>#######
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>The prompt template contains template variables. Given an input set of template variables, the formatted prompt is then given to an LLM to get an output.
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>Some examples of template variable inputs and expected outputs are given below to illustrate the task. **NOTE**: These do NOT represent the </span><span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span><span class=s2>entire evaluation dataset.
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2></span><span class=si>{qa_pairs_str}</span><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>We run every input in an evaluation dataset through an LLM. If the LLM-generated output doesn&#39;t match the expected output, we mark it as wrong (score 0).
+</span></span></span><span class=line><span class=cl><span class=s2>A correct answer has a score of 1. The final &#34;score&#34; for an instruction is the average of scores across an evaluation dataset.
+</span></span></span><span class=line><span class=cl><span class=s2>Write your new instruction (&lt;INS&gt;) that is different from the old ones and has a score as high as possible.
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>Instruction (&lt;INS&gt;): </span><span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span><span class=s2>&#34;&#34;&#34;</span>
+</span></span></code></pre></td></tr></table></div></div><p>这一长串的promt的最终目的是为了生成一个promt的前缀（也就是上面元提示中的Instruction (<ins>)）， 后续会不断地根据生成的Instruction及相应的表现（这个表现就是基于前面我们模拟生成的那个数据集来的）</p><p>首先我们需要准备好用来评估LLM问答效果的函数：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.evaluation.eval_utils</span> <span class=kn>import</span> <span class=n>get_responses</span> 
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.evaluation</span> <span class=kn>import</span> <span class=n>CorrectnessEvaluator</span><span class=p>,</span> <span class=n>BatchEvalRunner</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>evaluator_c</span> <span class=o>=</span> <span class=n>CorrectnessEvaluator</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>evaluator_dict</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;correctness&#34;</span><span class=p>:</span> <span class=n>evaluator_c</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=n>batch_runner</span> <span class=o>=</span> <span class=n>BatchEvalRunner</span><span class=p>(</span><span class=n>evaluator_dict</span><span class=p>,</span> <span class=n>workers</span><span class=o>=</span><span class=mi>2</span><span class=p>,</span> <span class=n>show_progress</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>async</span> <span class=k>def</span> <span class=nf>get_correctness</span><span class=p>(</span><span class=n>query_engine</span><span class=p>,</span> <span class=n>eval_qa_pairs</span><span class=p>,</span> <span class=n>batch_runner</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>eval_qs</span> <span class=o>=</span> <span class=p>[</span><span class=n>q</span> <span class=k>for</span> <span class=n>q</span><span class=p>,</span> <span class=n>_</span> <span class=ow>in</span> <span class=n>eval_qa_pairs</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>eval_answers</span> <span class=o>=</span> <span class=p>[</span><span class=n>a</span> <span class=k>for</span> <span class=n>_</span><span class=p>,</span> <span class=n>a</span> <span class=ow>in</span> <span class=n>eval_qa_pairs</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>pred_responses</span> <span class=o>=</span> <span class=n>get_responses</span><span class=p>(</span><span class=n>eval_qs</span><span class=p>,</span> <span class=n>query_engine</span><span class=p>,</span> <span class=n>show_progress</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>eval_results</span> <span class=o>=</span> <span class=k>await</span> <span class=n>batch_runner</span><span class=o>.</span><span class=n>aevaluate_responses</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>eval_qs</span><span class=p>,</span> <span class=n>responses</span><span class=o>=</span><span class=n>pred_responses</span><span class=p>,</span> <span class=n>reference</span><span class=o>=</span><span class=n>eval_answers</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>avg_correctness</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span><span class=n>r</span><span class=o>.</span><span class=n>score</span> <span class=k>for</span> <span class=n>r</span> <span class=ow>in</span> <span class=n>eval_results</span><span class=p>[</span><span class=s2>&#34;correctness&#34;</span><span class=p>]]</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span><span class=o>.</span><span class=n>mean</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>avg_correctness</span>
+</span></span></code></pre></td></tr></table></div></div><p>可以看到<code>get_correctness</code>会通过新的query_engine(内嵌了新生成的提示前缀, 也就是Instruction)来对我们的模拟数据中的问题进行回答， 然后基于这个预测回答和模拟数据中的回答来获得准确率</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>PromptTemplate</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>QA_PROMPT_KEY</span> <span class=o>=</span> <span class=s2>&#34;response_synthesizer:text_qa_template&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>meta_tmpl</span> <span class=o>=</span> <span class=n>PromptTemplate</span><span class=p>(</span><span class=n>meta_tmpl_str</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>format_meta_tmpl</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>prev_instr_score_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>prompt_tmpl_str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>qa_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>meta_tmpl</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;Call meta-prompt to generate new instruction.&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># format prev instruction score pairs.</span>
+</span></span><span class=line><span class=cl>    <span class=n>pair_str_list</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=sa>f</span><span class=s2>&#34;Instruction ():</span><span class=se>\n</span><span class=si>{</span><span class=n>instr</span><span class=si>}</span><span class=se>\n</span><span class=s2>Score:</span><span class=se>\n</span><span class=si>{</span><span class=n>score</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=n>instr</span><span class=p>,</span> <span class=n>score</span> <span class=ow>in</span> <span class=n>prev_instr_score_pairs</span>
+</span></span><span class=line><span class=cl>    <span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>full_instr_pair_str</span> <span class=o>=</span> <span class=s2>&#34;</span><span class=se>\n\n</span><span class=s2>&#34;</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>pair_str_list</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># now show QA pairs with ground-truth answers</span>
+</span></span><span class=line><span class=cl>    <span class=n>qa_str_list</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=sa>f</span><span class=s2>&#34;query_str:</span><span class=se>\n</span><span class=si>{</span><span class=n>query_str</span><span class=si>}</span><span class=se>\n</span><span class=s2>Answer:</span><span class=se>\n</span><span class=si>{</span><span class=n>answer</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=n>query_str</span><span class=p>,</span> <span class=n>answer</span> <span class=ow>in</span> <span class=n>qa_pairs</span>
+</span></span><span class=line><span class=cl>    <span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>full_qa_pair_str</span> <span class=o>=</span> <span class=s2>&#34;</span><span class=se>\n\n</span><span class=s2>&#34;</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>qa_str_list</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>fmt_meta_tmpl</span> <span class=o>=</span> <span class=n>meta_tmpl</span><span class=o>.</span><span class=n>format</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prev_instruction_score_pairs</span><span class=o>=</span><span class=n>full_instr_pair_str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>prompt_tmpl_str</span><span class=o>=</span><span class=n>prompt_tmpl_str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>qa_pairs_str</span><span class=o>=</span><span class=n>full_qa_pair_str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>fmt_meta_tmpl</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>prev_instr_score_pairs</code>是之前迭代产出的提示前缀以及相应的评分， 所以它会随着迭代的增加而不断扩展， 它的长度会和迭代次数对应的</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>get_full_prompt_template</span><span class=p>(</span><span class=n>cur_instr</span><span class=p>:</span> <span class=nb>str</span><span class=p>,</span> <span class=n>prompt_tmpl</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>tmpl_str</span> <span class=o>=</span> <span class=n>prompt_tmpl</span><span class=o>.</span><span class=n>get_template</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>new_tmpl_str</span> <span class=o>=</span> <span class=n>cur_instr</span> <span class=o>+</span> <span class=s2>&#34;</span><span class=se>\n</span><span class=s2>&#34;</span> <span class=o>+</span> <span class=n>tmpl_str</span>
+</span></span><span class=line><span class=cl>    <span class=n>new_tmpl</span> <span class=o>=</span> <span class=n>PromptTemplate</span><span class=p>(</span><span class=n>new_tmpl_str</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>new_tmpl</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>get_full_prompt_template</code>其实就是把我们生成的Intruction和原有的提示进行了拼接， 后续会拿这个拼接完的提示去更新Intruction</p><p>最后就是我们的主流程代码：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>_parse_meta_response</span><span class=p>(</span><span class=n>meta_response</span><span class=p>:</span> <span class=nb>str</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>str</span><span class=p>(</span><span class=n>meta_response</span><span class=p>)</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=s2>&#34;</span><span class=se>\n</span><span class=s2>&#34;</span><span class=p>)[</span><span class=mi>0</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>async</span> <span class=k>def</span> <span class=nf>optimize_prompts</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>query_engine</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>initial_instr</span><span class=p>:</span> <span class=nb>str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>base_prompt_tmpl</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>meta_tmpl</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>meta_llm</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>batch_eval_runner</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>eval_qa_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>exemplar_qa_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>num_iterations</span><span class=p>:</span> <span class=nb>int</span> <span class=o>=</span> <span class=mi>5</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>prev_instr_score_pairs</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>    <span class=n>base_prompt_tmpl_str</span> <span class=o>=</span> <span class=n>base_prompt_tmpl</span><span class=o>.</span><span class=n>get_template</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>cur_instr</span> <span class=o>=</span> <span class=n>initial_instr</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>idx</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>num_iterations</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>idx</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=c1># first generate</span>
+</span></span><span class=line><span class=cl>            <span class=n>fmt_meta_tmpl</span> <span class=o>=</span> <span class=n>format_meta_tmpl</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>prev_instr_score_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>base_prompt_tmpl_str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>exemplar_qa_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>meta_tmpl</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=n>meta_response</span> <span class=o>=</span> <span class=n>meta_llm</span><span class=o>.</span><span class=n>complete</span><span class=p>(</span><span class=n>fmt_meta_tmpl</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=nb>print</span><span class=p>(</span><span class=n>fmt_meta_tmpl</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=nb>print</span><span class=p>(</span><span class=nb>str</span><span class=p>(</span><span class=n>meta_response</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>            <span class=c1># Parse meta response</span>
+</span></span><span class=line><span class=cl>            <span class=n>cur_instr</span> <span class=o>=</span> <span class=n>_parse_meta_response</span><span class=p>(</span><span class=n>meta_response</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># append instruction to template</span>
+</span></span><span class=line><span class=cl>        <span class=n>new_prompt_tmpl</span> <span class=o>=</span> <span class=n>get_full_prompt_template</span><span class=p>(</span><span class=n>cur_instr</span><span class=p>,</span> <span class=n>base_prompt_tmpl</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>query_engine</span><span class=o>.</span><span class=n>update_prompts</span><span class=p>({</span><span class=n>QA_PROMPT_KEY</span><span class=p>:</span> <span class=n>new_prompt_tmpl</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>avg_correctness</span> <span class=o>=</span> <span class=k>await</span> <span class=n>get_correctness</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>query_engine</span><span class=p>,</span> <span class=n>eval_qa_pairs</span><span class=p>,</span> <span class=n>batch_runner</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>prev_instr_score_pairs</span><span class=o>.</span><span class=n>append</span><span class=p>((</span><span class=n>cur_instr</span><span class=p>,</span> <span class=n>avg_correctness</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># find the instruction with the highest score</span>
+</span></span><span class=line><span class=cl>    <span class=n>max_instr_score_pair</span> <span class=o>=</span> <span class=nb>max</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prev_instr_score_pairs</span><span class=p>,</span> <span class=n>key</span><span class=o>=</span><span class=k>lambda</span> <span class=n>item</span><span class=p>:</span> <span class=n>item</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># return the instruction</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>max_instr_score_pair</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>prev_instr_score_pairs</span>
+</span></span></code></pre></td></tr></table></div></div><p>然后正式地开始迭代</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>new_instr</span><span class=p>,</span> <span class=n>prev_instr_score_pairs</span> <span class=o>=</span> <span class=k>await</span> <span class=n>optimize_prompts</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>query_engine</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>initial_instr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>base_qa_prompt</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>meta_tmpl</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>llm</span><span class=p>,</span>  <span class=c1># note: treat llm as meta_llm</span>
+</span></span><span class=line><span class=cl>    <span class=n>batch_runner</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>eval_qr_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>exemplar_qr_pairs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>num_iterations</span><span class=o>=</span><span class=mi>5</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>new_qa_prompt</span> <span class=o>=</span> <span class=n>query_engine</span><span class=o>.</span><span class=n>get_prompts</span><span class=p>()[</span><span class=n>QA_PROMPT_KEY</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>new_qa_prompt</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>最后输出的new_qa_prompt应该就是评分最好的那个prompt了， 当然我们也可以打印prev_instr_score_pairs，看看它是不是最好的prompt</p><h2 id=参考>参考</h2><p><a class=link href=https://docs.llamaindex.ai/en/stable/examples/prompts/prompt_optimization/ target=_blank rel=noopener>https://docs.llamaindex.ai/en/stable/examples/prompts/prompt_optimization</a></p></section><footer class=article-footer><section class=article-tags><a href=/tags/%E6%8F%90%E7%A4%BA%E5%B7%A5%E7%A8%8B/>提示工程</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/><div class=article-details><h2 class=article-title>RAG进阶技巧</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2025 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
