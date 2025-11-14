@@ -1,0 +1,243 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content='数据准备 股价数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 # stock price conn = duckdb.connect(DB_FILE, read_only=True) stock_price_table_name = "stock_zh_a_hist_m" if MODE == "monthly" else "stock_zh_a_hist_d" stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.mktcap from {stock_price_table_name} t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) stock_price_df = calculate_excess_returns(stock_price.to_df()).dropna() 警告：这里的数据其实存在一个非常明显的问题，市值规模数据mktcap正常情况下应该使用历史数据， 这里用的是当前数据， 所以评估结果本身不具备参考价值\n'><title>双因子排序及因子构建</title>
+<link rel=canonical href=https://superjcd.github.io/p/%E5%8F%8C%E5%9B%A0%E5%AD%90%E6%8E%92%E5%BA%8F%E5%8F%8A%E5%9B%A0%E5%AD%90%E6%9E%84%E5%BB%BA/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="双因子排序及因子构建"><meta property='og:description' content='数据准备 股价数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 # stock price conn = duckdb.connect(DB_FILE, read_only=True) stock_price_table_name = "stock_zh_a_hist_m" if MODE == "monthly" else "stock_zh_a_hist_d" stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.mktcap from {stock_price_table_name} t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) stock_price_df = calculate_excess_returns(stock_price.to_df()).dropna() 警告：这里的数据其实存在一个非常明显的问题，市值规模数据mktcap正常情况下应该使用历史数据， 这里用的是当前数据， 所以评估结果本身不具备参考价值\n'><meta property='og:url' content='https://superjcd.github.io/p/%E5%8F%8C%E5%9B%A0%E5%AD%90%E6%8E%92%E5%BA%8F%E5%8F%8A%E5%9B%A0%E5%AD%90%E6%9E%84%E5%BB%BA/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='因子投资'><meta property='article:published_time' content='2025-11-14T02:16:24+00:00'><meta property='article:modified_time' content='2025-11-14T02:16:24+00:00'><meta name=twitter:title content="双因子排序及因子构建"><meta name=twitter:description content='数据准备 股价数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 # stock price conn = duckdb.connect(DB_FILE, read_only=True) stock_price_table_name = "stock_zh_a_hist_m" if MODE == "monthly" else "stock_zh_a_hist_d" stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.mktcap from {stock_price_table_name} t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) stock_price_df = calculate_excess_returns(stock_price.to_df()).dropna() 警告：这里的数据其实存在一个非常明显的问题，市值规模数据mktcap正常情况下应该使用历史数据， 这里用的是当前数据， 所以评估结果本身不具备参考价值\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><ol><li><a href=#数据准备>数据准备</a><ol><li><a href=#股价数据>股价数据</a></li><li><a href=#去除小盘股数据>去除小盘股数据</a></li><li><a href=#be-数据>be 数据</a></li><li><a href=#市值>市值</a></li><li><a href=#构建完整数据>构建完整数据</a></li></ol></li><li><a href=#计算-smb-因子和-hml-因子>计算 SMB 因子和 HML 因子</a></li><li><a href=#讨论>讨论</a></li><li><a href=#参考>参考</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/%E9%87%8F%E5%8C%96/>量化</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/%E5%8F%8C%E5%9B%A0%E5%AD%90%E6%8E%92%E5%BA%8F%E5%8F%8A%E5%9B%A0%E5%AD%90%E6%9E%84%E5%BB%BA/>双因子排序及因子构建</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Nov 14, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>3 minute read</time></div></footer></div></header><section class=article-content><h3 id=数据准备>数据准备</h3><h4 id=股价数据>股价数据</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># stock price</span>
+</span></span><span class=line><span class=cl><span class=n>conn</span> <span class=o>=</span> <span class=n>duckdb</span><span class=o>.</span><span class=n>connect</span><span class=p>(</span><span class=n>DB_FILE</span><span class=p>,</span> <span class=n>read_only</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>stock_price_table_name</span> <span class=o>=</span> <span class=s2>&#34;stock_zh_a_hist_m&#34;</span> <span class=k>if</span> <span class=n>MODE</span> <span class=o>==</span> <span class=s2>&#34;monthly&#34;</span> <span class=k>else</span> <span class=s2>&#34;stock_zh_a_hist_d&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>stock_price</span>  <span class=o>=</span> <span class=n>conn</span><span class=o>.</span><span class=n>sql</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>                select
+</span></span></span><span class=line><span class=cl><span class=s2>                    DISTINCT
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.stock_code,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.date,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.close price,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t2.stock_name,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t2.mktcap
+</span></span></span><span class=line><span class=cl><span class=s2>                from </span><span class=si>{</span><span class=n>stock_price_table_name</span><span class=si>}</span><span class=s2> t1
+</span></span></span><span class=line><span class=cl><span class=s2>                left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code
+</span></span></span><span class=line><span class=cl><span class=s2>                &#34;&#34;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>stock_price_df</span> <span class=o>=</span> <span class=n>calculate_excess_returns</span><span class=p>(</span><span class=n>stock_price</span><span class=o>.</span><span class=n>to_df</span><span class=p>())</span><span class=o>.</span><span class=n>dropna</span><span class=p>()</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>警告：这里的数据其实存在一个非常明显的问题，市值规模数据mktcap正常情况下应该使用历史数据， 这里用的是当前数据， 所以评估结果本身不具备参考价值</p></blockquote><h4 id=去除小盘股数据>去除小盘股数据</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>DROP_RATE</span> <span class=o>=</span> <span class=mf>0.30</span>
+</span></span><span class=line><span class=cl><span class=n>small_caps</span> <span class=o>=</span> <span class=n>stock_price_df</span><span class=o>.</span><span class=n>sort_values</span><span class=p>(</span><span class=n>by</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>])</span><span class=o>.</span><span class=n>drop_duplicates</span><span class=p>(</span><span class=n>subset</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>],</span> <span class=n>keep</span><span class=o>=</span><span class=s2>&#34;last&#34;</span><span class=p>)</span><span class=o>.</span><span class=n>sort_values</span><span class=p>(</span><span class=n>by</span><span class=o>=</span><span class=s2>&#34;mktcap&#34;</span><span class=p>,</span> <span class=n>ascending</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>small_cap_stocks</span> <span class=o>=</span> <span class=n>small_caps</span><span class=o>.</span><span class=n>head</span><span class=p>(</span><span class=nb>int</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=n>small_caps</span><span class=p>)</span> <span class=o>*</span> <span class=n>DROP_RATE</span><span class=p>))</span><span class=o>.</span><span class=n>stock_code</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>stock_price_df</span> <span class=o>=</span> <span class=n>stock_price_df</span><span class=o>.</span><span class=n>sort_values</span><span class=p>(</span><span class=n>by</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>])</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;stock_code not in @small_cap_stocks&#34;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=be-数据>be 数据</h4><p>be也就是book-equity</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>be</span> <span class=o>=</span> <span class=n>conn</span><span class=o>.</span><span class=n>sql</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>              SELECT
+</span></span></span><span class=line><span class=cl><span class=s2>                DISTINCT
+</span></span></span><span class=line><span class=cl><span class=s2>                stock_code,
+</span></span></span><span class=line><span class=cl><span class=s2>                be,
+</span></span></span><span class=line><span class=cl><span class=s2>                date
+</span></span></span><span class=line><span class=cl><span class=s2>              FROM stock_zcfz_em
+</span></span></span><span class=line><span class=cl><span class=s2>              &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>book_equity</span> <span class=o>=</span> <span class=n>be</span><span class=o>.</span><span class=n>to_df</span><span class=p>()</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;stock_code in @stock_price_df[&#39;stock_code&#39;].unique()&#34;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=市值>市值</h4><p>将市值数据滞后一周,防止 look-ahead bias(我们只能用较早的财务数据 而不能用最新的 因为最新的往往在当时还未取得)</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>size = (stock_price_df
+</span></span><span class=line><span class=cl>  .assign(sorting_date=lambda x: x[&#34;date&#34;]+pd.DateOffset(months=1))
+</span></span><span class=line><span class=cl>  .rename(columns={&#34;mktcap&#34;: &#34;size&#34;})
+</span></span><span class=line><span class=cl>  .get([&#34;stock_code&#34;, &#34;sorting_date&#34;, &#34;size&#34;])
+</span></span><span class=line><span class=cl>)
+</span></span></code></pre></td></tr></table></div></div><p>然后计算 bm</p><p>bm = book_equity / market_cap ,理论上越大公司就越有价值</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>bm</span> <span class=o>=</span> <span class=p>(</span><span class=n>book_equity</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>merge</span><span class=p>(</span><span class=n>stock_price_df</span><span class=p>,</span> <span class=n>how</span><span class=o>=</span><span class=s2>&#34;inner&#34;</span><span class=p>,</span> <span class=n>on</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>assign</span><span class=p>(</span><span class=n>bm</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=p>[</span><span class=s2>&#34;be&#34;</span><span class=p>]</span><span class=o>/</span><span class=n>x</span><span class=p>[</span><span class=s2>&#34;mktcap&#34;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>          <span class=n>sorting_date</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=p>[</span><span class=s2>&#34;date&#34;</span><span class=p>]</span><span class=o>+</span><span class=n>pd</span><span class=o>.</span><span class=n>DateOffset</span><span class=p>(</span><span class=n>months</span><span class=o>=</span><span class=mi>6</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>assign</span><span class=p>(</span><span class=n>accounting_date</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=p>[</span><span class=s2>&#34;sorting_date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;sorting_date&#34;</span><span class=p>,</span> <span class=s2>&#34;accounting_date&#34;</span><span class=p>,</span> <span class=s2>&#34;bm&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>同样， 我们对数据进行滞后处理（这里用了半年前的数据， 同时限定财务数据必须在一年以内, 不然没有参考价值）</p><h4 id=构建完整数据>构建完整数据</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>data_for_sorts</span> <span class=o>=</span> <span class=p>(</span><span class=n>stock_price_df</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>merge</span><span class=p>(</span><span class=n>bm</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>         <span class=n>how</span><span class=o>=</span><span class=s2>&#34;left&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>         <span class=n>left_on</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>         <span class=n>right_on</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;sorting_date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>merge</span><span class=p>(</span><span class=n>size</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>         <span class=n>how</span><span class=o>=</span><span class=s2>&#34;left&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>         <span class=n>left_on</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>         <span class=n>right_on</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;sorting_date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=s2>&#34;ret_excess&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;mktcap&#34;</span><span class=p>,</span> <span class=s2>&#34;size&#34;</span><span class=p>,</span> <span class=s2>&#34;bm&#34;</span><span class=p>,</span> <span class=s2>&#34;accounting_date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>data_for_sorts</span> <span class=o>=</span> <span class=p>(</span><span class=n>data_for_sorts</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>sort_values</span><span class=p>(</span><span class=n>by</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span><span class=s2>&#34;date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>groupby</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>apply</span><span class=p>(</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>x</span><span class=o>.</span><span class=n>assign</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>      <span class=n>bm</span><span class=o>=</span><span class=n>x</span><span class=p>[</span><span class=s2>&#34;bm&#34;</span><span class=p>]</span><span class=o>.</span><span class=n>fillna</span><span class=p>(</span><span class=n>method</span><span class=o>=</span><span class=s2>&#34;ffill&#34;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>      <span class=n>accounting_date</span><span class=o>=</span><span class=n>x</span><span class=p>[</span><span class=s2>&#34;accounting_date&#34;</span><span class=p>]</span><span class=o>.</span><span class=n>fillna</span><span class=p>(</span><span class=n>method</span><span class=o>=</span><span class=s2>&#34;ffill&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>reset_index</span><span class=p>(</span><span class=n>drop</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>assign</span><span class=p>(</span><span class=n>threshold_date</span> <span class=o>=</span> <span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=p>(</span><span class=n>x</span><span class=p>[</span><span class=s2>&#34;date&#34;</span><span class=p>]</span><span class=o>-</span><span class=n>pd</span><span class=o>.</span><span class=n>DateOffset</span><span class=p>(</span><span class=n>months</span><span class=o>=</span><span class=mi>12</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;accounting_date &gt; threshold_date&#34;</span><span class=p>)</span>   <span class=c1># 保证财务数据是一年内的</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>drop</span><span class=p>(</span><span class=n>columns</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;accounting_date&#34;</span><span class=p>,</span> <span class=s2>&#34;threshold_date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>dropna</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=计算-smb-因子和-hml-因子>计算 SMB 因子和 HML 因子</h3><p>SMB = small - big, 表示小市值公司和大公司市值的收益差值
+HML = high - low, 表示高价值(高 bm)和低 bm 的收益差值</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_size&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_size&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>astype</span><span class=p>(</span><span class=nb>int</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_bm&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_bm&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>astype</span><span class=p>(</span><span class=nb>int</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>n_size</span> <span class=o>=</span> <span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_size&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>max</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>n_bm</span> <span class=o>=</span> <span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_bm&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>max</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># SMB（小盘 - 大盘），逐日计算，并处理缺失（若某日某一侧缺失则结果为 NaN）</span>
+</span></span><span class=line><span class=cl><span class=n>small_ret</span> <span class=o>=</span> <span class=n>portfolios</span><span class=o>.</span><span class=n>loc</span><span class=p>[</span><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_size&#39;</span><span class=p>]</span> <span class=o>==</span> <span class=mi>1</span><span class=p>]</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s1>&#39;date&#39;</span><span class=p>)[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>mean</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>big_ret</span>   <span class=o>=</span> <span class=n>portfolios</span><span class=o>.</span><span class=n>loc</span><span class=p>[</span><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_size&#39;</span><span class=p>]</span> <span class=o>==</span> <span class=n>n_size</span><span class=p>]</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s1>&#39;date&#39;</span><span class=p>)[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>mean</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>smb</span> <span class=o>=</span> <span class=p>(</span><span class=n>small_ret</span> <span class=o>-</span> <span class=n>big_ret</span><span class=p>)</span><span class=o>.</span><span class=n>rename</span><span class=p>(</span><span class=s1>&#39;SMB&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>reset_index</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># HML（高 BE/ME - 低 BE/ME）</span>
+</span></span><span class=line><span class=cl><span class=n>high_ret</span> <span class=o>=</span> <span class=n>portfolios</span><span class=o>.</span><span class=n>loc</span><span class=p>[</span><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_bm&#39;</span><span class=p>]</span> <span class=o>==</span> <span class=n>n_bm</span><span class=p>]</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s1>&#39;date&#39;</span><span class=p>)[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>mean</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>low_ret</span>  <span class=o>=</span> <span class=n>portfolios</span><span class=o>.</span><span class=n>loc</span><span class=p>[</span><span class=n>portfolios</span><span class=p>[</span><span class=s1>&#39;portfolio_bm&#39;</span><span class=p>]</span> <span class=o>==</span> <span class=mi>1</span><span class=p>]</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s1>&#39;date&#39;</span><span class=p>)[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>mean</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>hml</span> <span class=o>=</span> <span class=p>(</span><span class=n>high_ret</span> <span class=o>-</span> <span class=n>low_ret</span><span class=p>)</span><span class=o>.</span><span class=n>rename</span><span class=p>(</span><span class=s1>&#39;HML&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>reset_index</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 若希望将 SMB/HML 合并成一个 DataFrame</span>
+</span></span><span class=line><span class=cl><span class=n>factors</span> <span class=o>=</span> <span class=n>smb</span><span class=o>.</span><span class=n>merge</span><span class=p>(</span><span class=n>hml</span><span class=p>,</span> <span class=n>on</span><span class=o>=</span><span class=s1>&#39;date&#39;</span><span class=p>,</span> <span class=n>how</span><span class=o>=</span><span class=s1>&#39;outer&#39;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>这里我们使用独立排序(注意fama-french 3因子模型使用的是 double sort!)， 分别计算了 SMB 和 HML</p><p>下面是这两个因子均值的汇总:
+SMB： -0.004243
+HML： -0.017698</p><p>然后分别使用截距项回归验证这两个因子的作用</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>import</span> <span class=nn>statsmodels.api</span> <span class=k>as</span> <span class=nn>sm</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>regtabletotext</span> <span class=kn>import</span> <span class=n>prettify_result</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>model_fit_smb</span> <span class=o>=</span> <span class=p>(</span><span class=n>sm</span><span class=o>.</span><span class=n>OLS</span><span class=o>.</span><span class=n>from_formula</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>formula</span><span class=o>=</span><span class=s2>&#34;SMB ~ 1&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>data</span><span class=o>=</span><span class=n>factors</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=o>.</span><span class=n>fit</span><span class=p>(</span><span class=n>cov_type</span><span class=o>=</span><span class=s2>&#34;HAC&#34;</span><span class=p>,</span> <span class=n>cov_kwds</span><span class=o>=</span><span class=p>{</span><span class=s2>&#34;maxlags&#34;</span><span class=p>:</span> <span class=mi>6</span><span class=p>})</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>prettify_result</span><span class=p>(</span><span class=n>model_fit_smb</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>model_fit_hml = (sm.OLS.from_formula(
+</span></span><span class=line><span class=cl>    formula=&#34;HML ~ 1&#34;,
+</span></span><span class=line><span class=cl>    data=factors
+</span></span><span class=line><span class=cl>  )
+</span></span><span class=line><span class=cl>  .fit(cov_type=&#34;HAC&#34;, cov_kwds={&#34;maxlags&#34;: 6})
+</span></span><span class=line><span class=cl>)
+</span></span><span class=line><span class=cl>prettify_result(model_fit_hml)
+</span></span></code></pre></td></tr></table></div></div><p>也就是说， 至少在 A 股, SMB 以及 HML 并不是显著有效的因子</p><h3 id=讨论>讨论</h3><p>在石川的&#171;因子投资&#187;中论证过 SMB 和 HML 这两个重要因子，在书中这两个因子的效用还是得到了验证;<br>以规模效应（SMB）为例， 在石川的书中，对小盘股进行了筛选（由于 A 股特有的借壳上市机制, 小盘股）剔除了市值最小的 30%的股票， 另外他的时间跨度是 2000-2020 年. 书中也提到了再 2015 年之前规模因子是有效的， 但是之后SMB效果就不再明显；<br>还有一点， 前面我也提到， 由于历史市值规模的缺失，导致我的评估结果没有办法真实反映因子的作用。</p><h3 id=参考>参考</h3><p><a class=link href=https://www.tidy-finance.org/python/value-and-bivariate-sorts.html target=_blank rel=noopener>value-and-bivariate-sorts</a><br>因子投资, 石川</p></section><footer class=article-footer><section class=article-tags><a href=/tags/%E5%9B%A0%E5%AD%90%E6%8A%95%E8%B5%84/>因子投资</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/%E8%AE%A1%E7%AE%97-a-%E8%82%A1-beta/><div class=article-details><h2 class=article-title>计算 A 股 beta</h2></div></a></article><article><a href=/p/%E5%9B%A0%E5%AD%90%E6%8A%95%E8%B5%84%E6%A6%82%E8%AE%BA/><div class=article-details><h2 class=article-title>因子投资概论</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2025 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

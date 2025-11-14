@@ -1,0 +1,240 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content='先简单讲一下什么是RAG(Retrieval-Augmented Generation), 或者说为什么需要RAG。\nLLM的训练数据是基于过去的信息， LLM没有办法回答最新的问题， 比如你没有办法让一个2022年训练的模型回答2023年NBA的冠军归属。\n当然我们可以选择给他喂最新的数据重新训练大模型， 但是这种方式的成本非常高昂。\n如何教"过时"的模型以新知识， 通过RAG， 我们把新的知识灌输或者填充到对话的语境中， 那么LLM通过检索这些新知识， 结合模型原有的理解能力， 他就能够回答自己在训练时没有遇到过的问题。\n本教程我们会使用llamaindex，具体版本信息：\n1 2 3 4 5 6 7 Name: llama-index Version: 0.10.31 Summary: Interface between LLMs and your data Home-page: https://llamaindex.ai Author: Jerry Liu Author-email: jerry@llamaindex.ai License: MIT 基础RAG流程 这里我们会使用llama3而不是OpenAI的chatgpt来作为我们的基座模型， 关于如何部署和使用llama3可以参考ollama的github文档：\n首先， 我们会为我们的RAG应用准备好llm基座和词嵌入模型：\n1 2 3 4 5 6 7 8 9 10 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding from llama_index.core import SimpleDirectoryReader llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle Settings是全局的配置类， 这样可以免去后续显式输入llm参数以及embed_model参数的过程；这里我们用智源（BAAI）的bge通用模型, 他们的词嵌入模型是比较好的\n'><title>RAG进阶技巧</title>
+<link rel=canonical href=https://superjcd.github.io/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="RAG进阶技巧"><meta property='og:description' content='先简单讲一下什么是RAG(Retrieval-Augmented Generation), 或者说为什么需要RAG。\nLLM的训练数据是基于过去的信息， LLM没有办法回答最新的问题， 比如你没有办法让一个2022年训练的模型回答2023年NBA的冠军归属。\n当然我们可以选择给他喂最新的数据重新训练大模型， 但是这种方式的成本非常高昂。\n如何教"过时"的模型以新知识， 通过RAG， 我们把新的知识灌输或者填充到对话的语境中， 那么LLM通过检索这些新知识， 结合模型原有的理解能力， 他就能够回答自己在训练时没有遇到过的问题。\n本教程我们会使用llamaindex，具体版本信息：\n1 2 3 4 5 6 7 Name: llama-index Version: 0.10.31 Summary: Interface between LLMs and your data Home-page: https://llamaindex.ai Author: Jerry Liu Author-email: jerry@llamaindex.ai License: MIT 基础RAG流程 这里我们会使用llama3而不是OpenAI的chatgpt来作为我们的基座模型， 关于如何部署和使用llama3可以参考ollama的github文档：\n首先， 我们会为我们的RAG应用准备好llm基座和词嵌入模型：\n1 2 3 4 5 6 7 8 9 10 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding from llama_index.core import SimpleDirectoryReader llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle Settings是全局的配置类， 这样可以免去后续显式输入llm参数以及embed_model参数的过程；这里我们用智源（BAAI）的bge通用模型, 他们的词嵌入模型是比较好的\n'><meta property='og:url' content='https://superjcd.github.io/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='RAG'><meta property='article:published_time' content='2024-04-29T00:00:00+00:00'><meta property='article:modified_time' content='2024-04-29T00:00:00+00:00'><meta name=twitter:title content="RAG进阶技巧"><meta name=twitter:description content='先简单讲一下什么是RAG(Retrieval-Augmented Generation), 或者说为什么需要RAG。\nLLM的训练数据是基于过去的信息， LLM没有办法回答最新的问题， 比如你没有办法让一个2022年训练的模型回答2023年NBA的冠军归属。\n当然我们可以选择给他喂最新的数据重新训练大模型， 但是这种方式的成本非常高昂。\n如何教"过时"的模型以新知识， 通过RAG， 我们把新的知识灌输或者填充到对话的语境中， 那么LLM通过检索这些新知识， 结合模型原有的理解能力， 他就能够回答自己在训练时没有遇到过的问题。\n本教程我们会使用llamaindex，具体版本信息：\n1 2 3 4 5 6 7 Name: llama-index Version: 0.10.31 Summary: Interface between LLMs and your data Home-page: https://llamaindex.ai Author: Jerry Liu Author-email: jerry@llamaindex.ai License: MIT 基础RAG流程 这里我们会使用llama3而不是OpenAI的chatgpt来作为我们的基座模型， 关于如何部署和使用llama3可以参考ollama的github文档：\n首先， 我们会为我们的RAG应用准备好llm基座和词嵌入模型：\n1 2 3 4 5 6 7 8 9 10 from llama_index.core import Settings from llama_index.llms.ollama import Ollama from llama_index.embeddings.huggingface import HuggingFaceEmbedding from llama_index.core import SimpleDirectoryReader llm = Ollama(model="llama3", request_timeout=60.0, temperature=0.1) Settings.llm = llm embed_modle = HuggingFaceEmbedding("BAAI/bge-base-en-v1.5") Settings.embed_model = embed_modle Settings是全局的配置类， 这样可以免去后续显式输入llm参数以及embed_model参数的过程；这里我们用智源（BAAI）的bge通用模型, 他们的词嵌入模型是比较好的\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#基础rag流程>基础RAG流程</a></li><li><a href=#前置过程优化----使用sentencewindownodeparser分割文档>前置过程优化 &ndash; 使用SentenceWindowNodeParser分割文档</a></li><li><a href=#匹配机制优化--使用hybrid-search>匹配机制优化&ndash;使用Hybrid Search</a></li><li><a href=#后置过程优化>后置过程优化</a></li><li><a href=#参考>参考</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/llm/>LLM</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/>RAG进阶技巧</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Apr 29, 2024</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>3 minute read</time></div></footer></div></header><section class=article-content><p>先简单讲一下什么是RAG(Retrieval-Augmented Generation), 或者说为什么需要RAG。<br>LLM的训练数据是基于过去的信息， LLM没有办法回答最新的问题， 比如你没有办法让一个2022年训练的模型回答2023年NBA的冠军归属。<br>当然我们可以选择给他喂最新的数据重新训练大模型， 但是这种方式的成本非常高昂。<br>如何教"过时"的模型以新知识， 通过RAG， 我们把新的知识灌输或者填充到对话的语境中， 那么LLM通过检索这些新知识， 结合模型原有的理解能力， 他就能够回答自己在训练时没有遇到过的问题。<br>本教程我们会使用llamaindex，具体版本信息：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Name: llama-index
+</span></span><span class=line><span class=cl>Version: 0.10.31
+</span></span><span class=line><span class=cl>Summary: Interface between LLMs and your data
+</span></span><span class=line><span class=cl>Home-page: https://llamaindex.ai
+</span></span><span class=line><span class=cl>Author: Jerry Liu
+</span></span><span class=line><span class=cl>Author-email: jerry@llamaindex.ai
+</span></span><span class=line><span class=cl>License: MIT
+</span></span></code></pre></td></tr></table></div></div><h2 id=基础rag流程>基础RAG流程</h2><p>这里我们会使用llama3而不是OpenAI的chatgpt来作为我们的基座模型， 关于如何部署和使用llama3可以参考ollama的<a class=link href=https://github.com/ollama/ollama target=_blank rel=noopener>github文档</a>：</p><p>首先， 我们会为我们的RAG应用准备好llm基座和词嵌入模型：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>Settings</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.llms.ollama</span> <span class=kn>import</span> <span class=n>Ollama</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.embeddings.huggingface</span> <span class=kn>import</span> <span class=n>HuggingFaceEmbedding</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>SimpleDirectoryReader</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>llm</span> <span class=o>=</span> <span class=n>Ollama</span><span class=p>(</span><span class=n>model</span><span class=o>=</span><span class=s2>&#34;llama3&#34;</span><span class=p>,</span> <span class=n>request_timeout</span><span class=o>=</span><span class=mf>60.0</span><span class=p>,</span> <span class=n>temperature</span><span class=o>=</span><span class=mf>0.1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>Settings</span><span class=o>.</span><span class=n>llm</span> <span class=o>=</span> <span class=n>llm</span>
+</span></span><span class=line><span class=cl><span class=n>embed_modle</span> <span class=o>=</span>  <span class=n>HuggingFaceEmbedding</span><span class=p>(</span><span class=s2>&#34;BAAI/bge-base-en-v1.5&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>Settings</span><span class=o>.</span><span class=n>embed_model</span> <span class=o>=</span> <span class=n>embed_modle</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>Settings是全局的配置类， 这样可以免去后续显式输入llm参数以及embed_model参数的过程；这里我们用智源（BAAI）的bge通用模型, 他们的词嵌入模型是比较好的</p></blockquote><p>接着我们要加载文档， 并对文档进行分割</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>SimpleDirectoryReader</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.node_parser</span> <span class=kn>import</span> <span class=n>SimpleNodeParser</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>documents</span> <span class=o>=</span> <span class=n>SimpleDirectoryReader</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>      <span class=n>input_files</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;./data/paul_graham_eassay.txt&#34;</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>.</span><span class=n>load_data</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>node_parser</span> <span class=o>=</span> <span class=n>SimpleNodeParser</span><span class=p>(</span><span class=n>chunk_size</span><span class=o>=</span><span class=mi>1024</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>nodes</span> <span class=o>=</span> <span class=n>node_parser</span><span class=o>.</span><span class=n>get_nodes_from_documents</span><span class=p>(</span><span class=n>documents</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=n>nodes</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>我们读取了data路径下的paul_graham_eassay.txt文档， 并将文档分割成了长度为1024的若干个文档， 这样文档数从原来的1个变成了21个
+打印其中一个文档：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=nb>str</span><span class=p>(</span><span class=n>nodes</span><span class=p>[</span><span class=mi>0</span><span class=p>]))</span>
+</span></span></code></pre></td></tr></table></div></div><p>输出：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>(&#39;Node ID: 00886ada-1a64-47ea-9f91-0eb48caf2138\n&#39;
+</span></span><span class=line><span class=cl> &#39;Text: What I Worked On    February 2021    Before college the two main\n&#39;
+</span></span><span class=line><span class=cl> &#39;things I worked on, outside of school, were writing and programming. I\n&#39;
+</span></span><span class=line><span class=cl> &#34;didn&#39;t write essays. I wrote what beginning writers were supposed to\n&#34;
+</span></span><span class=line><span class=cl> &#39;write then, and probably still are: short stories. My stories were\n&#39;
+</span></span><span class=line><span class=cl> &#39;awful. They had hardly any plot, just characters with strong feelings,\n&#39;
+</span></span><span class=line><span class=cl> &#39;whic...&#39;)
+</span></span></code></pre></td></tr></table></div></div><p>在我正式使用语义进行文档查询之前， 我们需要准备好我们的向量数据库， 可选项有很多， 具体可以参考<a class=link href=https://docs.llamaindex.ai/en/stable/community/integrations/vector_stores/ target=_blank rel=noopener>这里</a>;这里我们使用weaviate(推荐使用docker本地运行weaviate， 具体参考<a class=link href=https://weaviate.io/developers/weaviate/installation/docker-compose target=_blank rel=noopener>这里</a>, )</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>import</span> <span class=nn>weaviate</span>  <span class=c1># v3 version</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core</span> <span class=kn>import</span> <span class=n>VectorStoreIndex</span><span class=p>,</span> <span class=n>StorageContext</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.vector_stores.weaviate</span> <span class=kn>import</span> <span class=n>WeaviateVectorStore</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>index_name</span> <span class=o>=</span> <span class=s2>&#34;MyExternalContext&#34;</span>
+</span></span><span class=line><span class=cl><span class=n>client</span> <span class=o>=</span> <span class=n>weaviate</span><span class=o>.</span><span class=n>Client</span><span class=p>(</span><span class=n>url</span><span class=o>=</span><span class=s2>&#34;http://localhost:8080&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>vector_store</span>  <span class=o>=</span> <span class=n>WeaviateVectorStore</span><span class=p>(</span><span class=n>weaviate_client</span><span class=o>=</span><span class=n>client</span><span class=p>,</span> <span class=n>index_name</span><span class=o>=</span><span class=n>index_name</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>storage_context</span> <span class=o>=</span> <span class=n>StorageContext</span><span class=o>.</span><span class=n>from_defaults</span><span class=p>(</span><span class=n>vector_store</span><span class=o>=</span><span class=n>vector_store</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>index</span> <span class=o>=</span> <span class=n>VectorStoreIndex</span><span class=p>(</span><span class=n>nodes</span><span class=p>,</span> <span class=n>storage_context</span><span class=o>=</span><span class=n>storage_context</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>接着我使用VectotreStoreIndex作为我们查询引擎来查询文档：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>Question</span> <span class=o>=</span> <span class=s2>&#34;What happened at Interleaf?&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>query_engine</span> <span class=o>=</span> <span class=n>index</span><span class=o>.</span><span class=n>as_query_engine</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span> <span class=o>=</span> <span class=n>query_engine</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=n>Question</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=前置过程优化----使用sentencewindownodeparser分割文档>前置过程优化 &ndash; 使用SentenceWindowNodeParser分割文档</h2><p>所谓的前置优化， 就是发生在query之前的优化。<br>前面我们使用了<code>SimpleNodeParser</code>来分割我们的文档， 当时我们把文档分割成了长度为1024的21个文档， 这里的问题在于：当我们进行query的时候， 我们会先定位到这21个文档中的某一个来填充llm的context， 然后通过llm来输出问题；<br>很显然， 1024这个长度其实有点太大了，不利于精准定位；但是假设我缩小文档的长度，文档匹配的精度会上升， 但是同时可能导致context的上下文信息变少，也利于输出正确的答案；<br>所以我们需要在匹配精度和保证context上下文的基础上进行平衡， 这里我们使用 <code>SentenceWindowNodeParser</code>来分割文档：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.node_parser</span> <span class=kn>import</span> <span class=n>SentenceWindowNodeParser</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>node_parser</span> <span class=o>=</span> <span class=n>SentenceWindowNodeParser</span><span class=o>.</span><span class=n>from_defaults</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>window_size</span><span class=o>=</span><span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>window_metadata_key</span><span class=o>=</span><span class=s2>&#34;window&#34;</span><span class=p>,</span>   <span class=c1># 会成为元数据</span>
+</span></span><span class=line><span class=cl>    <span class=n>original_text_metadata_key</span><span class=o>=</span><span class=s2>&#34;original_text&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>nodes</span> <span class=o>=</span> <span class=n>node_parser</span><span class=o>.</span><span class=n>get_nodes_from_documents</span><span class=p>(</span><span class=n>documents</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=n>nodes</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>vector_store</span>  <span class=o>=</span> <span class=n>WeaviateVectorStore</span><span class=p>(</span><span class=n>weaviate_client</span><span class=o>=</span><span class=n>client</span><span class=p>,</span> <span class=n>index_name</span><span class=o>=</span><span class=n>index_name</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>storage_context</span> <span class=o>=</span> <span class=n>StorageContext</span><span class=o>.</span><span class=n>from_defaults</span><span class=p>(</span><span class=n>vector_store</span><span class=o>=</span><span class=n>vector_store</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>index</span> <span class=o>=</span> <span class=n>VectorStoreIndex</span><span class=p>(</span><span class=n>nodes</span><span class=p>,</span> <span class=n>storage_context</span><span class=o>=</span><span class=n>storage_context</span><span class=p>)</span>  <span class=c1># 考虑文</span>
+</span></span></code></pre></td></tr></table></div></div><p>同时我们需要去置换<code>as_query_engine</code>的<code>node_postprocessors</code>参数</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.postprocessor</span> <span class=kn>import</span> <span class=n>MetadataReplacementPostProcessor</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># The target key defaults to `window` to match the node_parser&#39;s default</span>
+</span></span><span class=line><span class=cl><span class=n>postproc</span> <span class=o>=</span> <span class=n>MetadataReplacementPostProcessor</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>target_metadata_key</span><span class=o>=</span><span class=s2>&#34;window&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>query_engine</span> <span class=o>=</span> <span class=n>index</span><span class=o>.</span><span class=n>as_query_engine</span><span class=p>(</span> 
+</span></span><span class=line><span class=cl>    <span class=n>node_postprocessors</span> <span class=o>=</span> <span class=p>[</span><span class=n>postproc</span><span class=p>],</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span> <span class=o>=</span>  <span class=n>query_engine</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=n>Question</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=匹配机制优化--使用hybrid-search>匹配机制优化&ndash;使用Hybrid Search</h2><p>前面的优化方式， 发生在匹配之前， 我们也可以选择优化匹配算法， 将基于语义（词向量）的方式修改为结合关键词查询</p><blockquote><p>关键词查询的特点会查找和查询内容更相似的内容， 比如用户搜索apple， 在关键词查询的场景下， 所有带有apple的文档都是目标文档， 不论apple指的是苹果还是手机。 另外假设用户输入的词语发生了拼写错误， 关键词匹配机制也会失效</p></blockquote><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>query_engine</span> <span class=o>=</span> <span class=n>index</span><span class=o>.</span><span class=n>as_query_engine</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>node_postprocessors</span> <span class=o>=</span> <span class=p>[</span><span class=n>postproc</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>vector_store_query_mode</span><span class=o>=</span><span class=s2>&#34;hybrid&#34;</span><span class=p>,</span> 
+</span></span><span class=line><span class=cl>    <span class=n>alpha</span><span class=o>=</span><span class=mf>0.5</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> 
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span> <span class=o>=</span> <span class=n>query_engine</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=n>Question</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>alpha是0-1之间的值，表示关键词匹配的比例， 如果是0的话， 则不使用；</p><blockquote><p>注意并不是所有向量数据库都支持关键词匹配</p></blockquote><h2 id=后置过程优化>后置过程优化</h2><p>最后， 当我们得到了目标结果， 如果我们想要进步一步优化查询， 那该怎么处理？
+一种方法就是使用reranker从候选文档（比如有6个候选文档）中筛选出1-2个更匹配的文档：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>llama_index.core.postprocessor</span> <span class=kn>import</span> <span class=n>SentenceTransformerRerank</span>  <span class=c1># 计算相似度</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>rerank</span> <span class=o>=</span> <span class=n>SentenceTransformerRerank</span><span class=p>(</span><span class=n>top_n</span><span class=o>=</span><span class=mi>2</span><span class=p>,</span> <span class=n>model</span><span class=o>=</span><span class=s2>&#34;BAAI/bge-reranker-base&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>query_engine</span> <span class=o>=</span> <span class=n>index</span><span class=o>.</span><span class=n>as_query_engine</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>similarity_top_k</span><span class=o>=</span><span class=mi>6</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>node_postprocessors</span> <span class=o>=</span> <span class=p>[</span><span class=n>rerank</span><span class=p>,</span> <span class=n>postproc</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>vector_store_query_mode</span><span class=o>=</span><span class=s2>&#34;hybrid&#34;</span><span class=p>,</span> 
+</span></span><span class=line><span class=cl>    <span class=n>alpha</span><span class=o>=</span><span class=mf>0.3</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span> <span class=o>=</span> <span class=n>query_engine</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=n>Question</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=参考>参考</h2><p><a class=link href=https://towardsdatascience.com/retrieval-augmented-generation-rag-from-theory-to-langchain-implementation-4e9bd5f6a4f2 target=_blank rel=noopener>Retrieval-Augmented Generation (RAG): From Theory to LangChain Implementation</a></p></section><footer class=article-footer><section class=article-tags><a href=/tags/rag/>RAG</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/%E9%AB%98%E7%BA%A7prompt%E4%BC%98%E5%8C%96%E6%8A%80%E5%B7%A7-%E5%9F%BA%E4%BA%8E%E5%85%83%E6%8F%90%E7%A4%BA/><div class=article-details><h2 class=article-title>高级Prompt优化技巧-基于元提示</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2025 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

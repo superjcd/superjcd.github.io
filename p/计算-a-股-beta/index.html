@@ -1,0 +1,282 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content='概要 所有数据来源于akshare,字段名做了修改并被保存在数据库中(duckdb)\n这里介绍如何计算 CAPM 模型中的 beta\n关于 beta 的介绍， 参考 WikipediaBeta (finance)\nbeta 描述的是一个股票的波动率相对于市场的波动率的一种度量, 所以需要同时用到个股的历史收益数据以及市场收益数据\n这里的收益都是百分比变化; 另外， 我们使用上证指数的百分比变化作为市场收益数据\n计算 beta 的核心是计算个股超额收益 ~ 市场超额收益的这个 OLS 的回归系数\n数据准备 个股收益数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.industry fromstock_zh_a_hist_m t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) def calculate_excess_returns(df, risk_free_rate=0): df = df.sort_values(["stock_code", "date"]) df["ret"] = df.groupby("stock_code")[&#39;price&#39;].pct_change() df[&#39;ret&#39;] = df.groupby(&#39;stock_code&#39;)[&#39;price&#39;].pct_change() df[&#39;ret_excess&#39;] = df[&#39;ret&#39;] - risk_free_rate return df # Apply the function to add ret_excess column stock_price_df = calculate_excess_returns(stock_price.to_df()) 市场收益数据 上证指数\n'><title>计算 A 股 beta</title>
+<link rel=canonical href=https://superjcd.github.io/p/%E8%AE%A1%E7%AE%97-a-%E8%82%A1-beta/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="计算 A 股 beta"><meta property='og:description' content='概要 所有数据来源于akshare,字段名做了修改并被保存在数据库中(duckdb)\n这里介绍如何计算 CAPM 模型中的 beta\n关于 beta 的介绍， 参考 WikipediaBeta (finance)\nbeta 描述的是一个股票的波动率相对于市场的波动率的一种度量, 所以需要同时用到个股的历史收益数据以及市场收益数据\n这里的收益都是百分比变化; 另外， 我们使用上证指数的百分比变化作为市场收益数据\n计算 beta 的核心是计算个股超额收益 ~ 市场超额收益的这个 OLS 的回归系数\n数据准备 个股收益数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.industry fromstock_zh_a_hist_m t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) def calculate_excess_returns(df, risk_free_rate=0): df = df.sort_values(["stock_code", "date"]) df["ret"] = df.groupby("stock_code")[&#39;price&#39;].pct_change() df[&#39;ret&#39;] = df.groupby(&#39;stock_code&#39;)[&#39;price&#39;].pct_change() df[&#39;ret_excess&#39;] = df[&#39;ret&#39;] - risk_free_rate return df # Apply the function to add ret_excess column stock_price_df = calculate_excess_returns(stock_price.to_df()) 市场收益数据 上证指数\n'><meta property='og:url' content='https://superjcd.github.io/p/%E8%AE%A1%E7%AE%97-a-%E8%82%A1-beta/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='因子投资'><meta property='article:published_time' content='2025-11-12T10:07:41+00:00'><meta property='article:modified_time' content='2025-11-12T10:07:41+00:00'><meta name=twitter:title content="计算 A 股 beta"><meta name=twitter:description content='概要 所有数据来源于akshare,字段名做了修改并被保存在数据库中(duckdb)\n这里介绍如何计算 CAPM 模型中的 beta\n关于 beta 的介绍， 参考 WikipediaBeta (finance)\nbeta 描述的是一个股票的波动率相对于市场的波动率的一种度量, 所以需要同时用到个股的历史收益数据以及市场收益数据\n这里的收益都是百分比变化; 另外， 我们使用上证指数的百分比变化作为市场收益数据\n计算 beta 的核心是计算个股超额收益 ~ 市场超额收益的这个 OLS 的回归系数\n数据准备 个股收益数据 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 stock_price = conn.sql(f""" select DISTINCT t1.stock_code, t1.date, t1.close price, t2.stock_name, t2.industry fromstock_zh_a_hist_m t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code """) def calculate_excess_returns(df, risk_free_rate=0): df = df.sort_values(["stock_code", "date"]) df["ret"] = df.groupby("stock_code")[&#39;price&#39;].pct_change() df[&#39;ret&#39;] = df.groupby(&#39;stock_code&#39;)[&#39;price&#39;].pct_change() df[&#39;ret_excess&#39;] = df[&#39;ret&#39;] - risk_free_rate return df # Apply the function to add ret_excess column stock_price_df = calculate_excess_returns(stock_price.to_df()) 市场收益数据 上证指数\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#概要>概要</a><ol><li><a href=#数据准备>数据准备</a><ol><li><a href=#个股收益数据>个股收益数据</a></li><li><a href=#市场收益数据>市场收益数据</a></li></ol></li><li><a href=#回归模型>回归模型</a></li><li><a href=#滚动窗口>滚动窗口</a></li><li><a href=#并行计算>并行计算</a><ol><li><a href=#方案1使用joblib>方案1：使用joblib</a></li><li><a href=#方案2-使用processpoolexecutor>方案2： 使用ProcessPoolExecutor</a></li><li><a href=#方案3使用duckdb>方案3：使用duckdb</a></li><li><a href=#保存-beta-数据>保存 beta 数据</a></li></ol></li><li><a href=#可视化分析可选>可视化分析[可选]</a></li><li><a href=#参考>参考</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/%E9%87%8F%E5%8C%96/>量化</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/%E8%AE%A1%E7%AE%97-a-%E8%82%A1-beta/>计算 A 股 beta</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Nov 12, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>3 minute read</time></div></footer></div></header><section class=article-content><h2 id=概要>概要</h2><blockquote><p>所有数据来源于<a class=link href=https://akshare.akfamily.xyz/data/ target=_blank rel=noopener>akshare</a>,字段名做了修改并被保存在数据库中(duckdb)</p></blockquote><p>这里介绍如何计算 CAPM 模型中的 beta</p><blockquote><p>关于 beta 的介绍， 参考 Wikipedia<a class=link href=https://en.wikipedia.org/wiki/Beta_%28finance%29 target=_blank rel=noopener>Beta (finance)</a></p></blockquote><p>beta 描述的是一个股票的波动率相对于市场的波动率的一种度量, 所以需要同时用到个股的历史收益数据以及市场收益数据</p><blockquote><p>这里的收益都是百分比变化; 另外， 我们使用上证指数的百分比变化作为市场收益数据</p></blockquote><p>计算 beta 的核心是计算<strong>个股超额收益 ~ 市场超额收益的</strong>这个 OLS 的回归系数</p><h3 id=数据准备>数据准备</h3><h4 id=个股收益数据>个股收益数据</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>stock_price</span>  <span class=o>=</span> <span class=n>conn</span><span class=o>.</span><span class=n>sql</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>                select
+</span></span></span><span class=line><span class=cl><span class=s2>                    DISTINCT
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.stock_code,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.date,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t1.close price,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t2.stock_name,
+</span></span></span><span class=line><span class=cl><span class=s2>                    t2.industry
+</span></span></span><span class=line><span class=cl><span class=s2>                fromstock_zh_a_hist_m t1 left join stock_individual_info_em t2 on t1.stock_code = t2.stock_code
+</span></span></span><span class=line><span class=cl><span class=s2>                &#34;&#34;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>calculate_excess_returns</span><span class=p>(</span><span class=n>df</span><span class=p>,</span> <span class=n>risk_free_rate</span><span class=o>=</span><span class=mi>0</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>df</span> <span class=o>=</span>  <span class=n>df</span><span class=o>.</span><span class=n>sort_values</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>    <span class=n>df</span><span class=p>[</span><span class=s2>&#34;ret&#34;</span><span class=p>]</span> <span class=o>=</span> <span class=n>df</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s2>&#34;stock_code&#34;</span><span class=p>)[</span><span class=s1>&#39;price&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>pct_change</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>df</span><span class=p>[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=n>df</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s1>&#39;stock_code&#39;</span><span class=p>)[</span><span class=s1>&#39;price&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>pct_change</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>df</span><span class=p>[</span><span class=s1>&#39;ret_excess&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=n>df</span><span class=p>[</span><span class=s1>&#39;ret&#39;</span><span class=p>]</span> <span class=o>-</span> <span class=n>risk_free_rate</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>df</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Apply the function to add ret_excess column</span>
+</span></span><span class=line><span class=cl><span class=n>stock_price_df</span> <span class=o>=</span> <span class=n>calculate_excess_returns</span><span class=p>(</span><span class=n>stock_price</span><span class=o>.</span><span class=n>to_df</span><span class=p>())</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=市场收益数据>市场收益数据</h4><p>上证指数</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl>  <span class=n>market_index_df</span> <span class=o>=</span> <span class=n>conn</span><span class=o>.</span><span class=n>sql</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=sa>f</span><span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>    SELECT DISTINCT date, close market_index FROM index_zh_sz_d ORDER BY date
+</span></span></span><span class=line><span class=cl><span class=s2>    &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span><span class=o>.</span><span class=n>to_df</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>market_index_df</span><span class=p>[</span><span class=s2>&#34;mkt_excess&#34;</span><span class=p>]</span> <span class=o>=</span> <span class=n>market_index_df</span><span class=p>[</span><span class=s2>&#34;market_index&#34;</span><span class=p>]</span><span class=o>.</span><span class=n>pct_change</span><span class=p>()</span>
+</span></span></code></pre></td></tr></table></div></div><p>整合个股收益数据和市场收益数据</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>stock_price_with_mkt_excess</span> <span class=o>=</span> <span class=n>stock_price_df</span><span class=o>.</span><span class=n>merge</span><span class=p>(</span><span class=n>market_index_df</span><span class=p>,</span> <span class=n>left_on</span><span class=o>=</span><span class=s1>&#39;date&#39;</span><span class=p>,</span> <span class=n>right_on</span><span class=o>=</span><span class=s1>&#39;date&#39;</span><span class=p>,</span> <span class=n>how</span><span class=o>=</span><span class=s1>&#39;left&#39;</span><span class=p>)</span><span class=o>.</span><span class=n>dropna</span><span class=p>()</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=回归模型>回归模型</h3><p>对单一股票计算 beta(以万科000002为例)</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>import</span> <span class=nn>statsmodels.formula.api</span> <span class=k>as</span> <span class=nn>smf</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>model_fit</span> <span class=o>=</span> <span class=n>smf</span><span class=o>.</span><span class=n>ols</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>formula</span><span class=o>=</span><span class=s2>&#34;ret_excess ~ mkt_excess&#34;</span><span class=p>,</span> <span class=n>data</span><span class=o>=</span><span class=n>stock_price_with_mkt_excess</span> <span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;stock_code == &#39;000002&#39;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>.</span><span class=n>fit</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>coefficients</span> <span class=o>=</span> <span class=n>model_fit</span><span class=o>.</span><span class=n>summary2</span><span class=p>()</span><span class=o>.</span><span class=n>tables</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=n>coefficients</span>
+</span></span></code></pre></td></tr></table></div></div><p>输出结果如下：</p><div class=table-wrapper><table><thead><tr><th></th><th>Coef.</th><th>Std.Err.</th><th>t</th><th>P>|t|</th><th>[0.025</th><th>0.975]</th></tr></thead><tbody><tr><td>Intercept</td><td>-0.003801</td><td>0.006818</td><td>-0.557436</td><td>5.779298e-01</td><td>-0.017255</td><td>0.009654</td></tr><tr><td>mkt_excess</td><td>1.062607</td><td>0.127523</td><td>8.332703</td><td>2.068179e-14</td><td>0.810957</td><td>1.314258</td></tr></tbody></table></div><p>可以看到万科的收益和市场收益（2010 年到 2025 年间的数据）是存在明显的相关性的,且 beta>1</p><blockquote><p>这里的 Intercept 是截距，就是我们通常说的 alpha， 不过这里它并不显著</p></blockquote><h3 id=滚动窗口>滚动窗口</h3><p>上面我们使用了所有历史数据计算 beta，但是更加适合的方式是使用滚动窗口，比如我只用最近两年的数据来计算 beta（这样能更好地反映和捕捉股票本身对市场反应的变化）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>estimate_capm</span><span class=p>(</span><span class=n>data</span><span class=p>,</span> <span class=n>min_obs</span><span class=o>=</span><span class=mi>1</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>data</span><span class=o>.</span><span class=n>shape</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>&lt;</span> <span class=n>min_obs</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>capm</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>DataFrame</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>fit</span> <span class=o>=</span> <span class=n>smf</span><span class=o>.</span><span class=n>ols</span><span class=p>(</span><span class=n>formula</span><span class=o>=</span><span class=s2>&#34;ret_excess ~ mkt_excess&#34;</span><span class=p>,</span> <span class=n>data</span><span class=o>=</span><span class=n>data</span><span class=p>)</span><span class=o>.</span><span class=n>fit</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=n>coefficients</span> <span class=o>=</span> <span class=n>fit</span><span class=o>.</span><span class=n>summary2</span><span class=p>()</span><span class=o>.</span><span class=n>tables</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>capm</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>DataFrame</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=s2>&#34;coefficient&#34;</span><span class=p>:</span> <span class=n>coefficients</span><span class=o>.</span><span class=n>index</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=s2>&#34;estimate&#34;</span><span class=p>:</span> <span class=n>coefficients</span><span class=p>[</span><span class=s2>&#34;Coef.&#34;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>                <span class=s2>&#34;t_statistic&#34;</span><span class=p>:</span> <span class=n>coefficients</span><span class=p>[</span><span class=s2>&#34;t&#34;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span><span class=o>.</span><span class=n>assign</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>coefficient</span><span class=o>=</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>np</span><span class=o>.</span><span class=n>where</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>x</span><span class=p>[</span><span class=s2>&#34;coefficient&#34;</span><span class=p>]</span> <span class=o>==</span> <span class=s2>&#34;Intercept&#34;</span><span class=p>,</span> <span class=s2>&#34;alpha&#34;</span><span class=p>,</span> <span class=n>x</span><span class=p>[</span><span class=s2>&#34;coefficient&#34;</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>            <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>capm</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>roll_capm_estimation</span><span class=p>(</span><span class=n>data</span><span class=p>,</span> <span class=n>look_back</span><span class=o>=</span><span class=mi>60</span><span class=p>,</span> <span class=n>min_obs</span><span class=o>=</span><span class=mi>48</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>results</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>    <span class=n>dates</span> <span class=o>=</span> <span class=n>data</span><span class=p>[</span><span class=s2>&#34;date&#34;</span><span class=p>]</span><span class=o>.</span><span class=n>sort_values</span><span class=p>()</span><span class=o>.</span><span class=n>drop_duplicates</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>look_back</span> <span class=o>-</span> <span class=mi>1</span><span class=p>,</span> <span class=nb>len</span><span class=p>(</span><span class=n>dates</span><span class=p>)):</span>
+</span></span><span class=line><span class=cl>        <span class=n>start_date</span> <span class=o>=</span> <span class=n>dates</span><span class=o>.</span><span class=n>iloc</span><span class=p>[</span><span class=n>i</span> <span class=o>-</span> <span class=n>look_back</span> <span class=o>+</span> <span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>        <span class=n>end_date</span> <span class=o>=</span> <span class=n>dates</span><span class=o>.</span><span class=n>iloc</span><span class=p>[</span><span class=n>i</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>window_data</span> <span class=o>=</span> <span class=n>data</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;date &gt;= @start_date &amp; date &lt;= @end_date&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>result</span> <span class=o>=</span> <span class=n>estimate_capm</span><span class=p>(</span><span class=n>window_data</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>result</span><span class=p>[</span><span class=s2>&#34;date&#34;</span><span class=p>]</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>max</span><span class=p>(</span><span class=n>window_data</span><span class=p>[</span><span class=s2>&#34;date&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>        <span class=n>results</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>result</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>results</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>rolling_capm_estimation</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>concat</span><span class=p>(</span><span class=n>results</span><span class=p>,</span> <span class=n>ignore_index</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>rolling_capm_estimation</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>DataFrame</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>rolling_capm_estimation</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>estimate_capm</strong>会为每一个时间窗口计算 CAPM 的估计值, <strong>roll_capm_estimation</strong>则会批量计算多个时间窗口的 CAPM 估计值</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>WINDOW_SIZE</span> <span class=o>=</span> <span class=mi>60</span>
+</span></span><span class=line><span class=cl><span class=n>capm</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>stock_price_with_mkt_excess</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s2>&#34;stock_code&#34;</span><span class=err>）</span>
+</span></span><span class=line><span class=cl>    <span class=o>.</span><span class=n>apply</span><span class=p>(</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>roll_capm_estimation</span><span class=p>(</span><span class=n>x</span><span class=p>,</span> <span class=n>WINDOW_SIZE</span><span class=p>),</span> <span class=n>include_groups</span><span class=o>=</span><span class=kc>False</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>.</span><span class=n>reset_index</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=s2>&#34;coefficient&#34;</span><span class=p>,</span> <span class=s2>&#34;estimate&#34;</span><span class=p>,</span> <span class=s2>&#34;t_statistic&#34;</span><span class=p>])</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=并行计算>并行计算</h3><p>上面的方案的问题在于速度太慢，我们可以使用并行计算来提高速度。</p><h4 id=方案1使用joblib>方案1：使用joblib</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>joblib</span> <span class=kn>import</span> <span class=n>Parallel</span><span class=p>,</span> <span class=n>delayed</span><span class=p>,</span> <span class=n>cpu_count</span>
+</span></span><span class=line><span class=cl><span class=c1># 全量股票数据</span>
+</span></span><span class=line><span class=cl><span class=n>nested_data</span> <span class=o>=</span> <span class=n>stock_price_with_mkt_excess</span><span class=o>.</span><span class=n>groupby</span><span class=p>(</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=n>group_keys</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>n_cores</span> <span class=o>=</span> <span class=n>cpu_count</span><span class=p>()</span> <span class=o>-</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>capm</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>concat</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>Parallel</span><span class=p>(</span><span class=n>n_jobs</span><span class=o>=</span><span class=n>n_cores</span><span class=p>)(</span>
+</span></span><span class=line><span class=cl>        <span class=n>delayed</span><span class=p>(</span><span class=k>lambda</span> <span class=n>name</span><span class=p>,</span> <span class=n>group</span><span class=p>:</span> <span class=n>roll_capm_estimation</span><span class=p>(</span><span class=n>group</span><span class=p>)</span><span class=o>.</span><span class=n>assign</span><span class=p>(</span><span class=n>stock_code</span><span class=o>=</span><span class=n>name</span><span class=p>))(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=p>,</span> <span class=n>group</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=n>name</span><span class=p>,</span> <span class=n>group</span> <span class=ow>in</span> <span class=n>nested_data</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=s2>&#34;coefficient&#34;</span><span class=p>,</span> <span class=s2>&#34;estimate&#34;</span><span class=p>,</span> <span class=s2>&#34;t_statistic&#34;</span><span class=p>])</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=方案2-使用processpoolexecutor>方案2： 使用ProcessPoolExecutor</h4><p>除了使用joblib，还可以使用python自带的ProcessPoolExecutor（推荐，更加pythonic）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>concurrent.futures</span> <span class=kn>import</span> <span class=n>ProcessPoolExecutor</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>pandas</span> <span class=k>as</span> <span class=nn>pd</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>process_group</span><span class=p>(</span><span class=n>name</span><span class=p>,</span> <span class=n>group</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>result</span> <span class=o>=</span> <span class=n>roll_capm_estimation</span><span class=p>(</span><span class=n>group</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>result</span><span class=p>[</span><span class=s1>&#39;stock_code&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=n>name</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>result</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 使用 ProcessPoolExecutor 实现并行计算</span>
+</span></span><span class=line><span class=cl><span class=k>with</span> <span class=n>ProcessPoolExecutor</span><span class=p>(</span><span class=n>max_workers</span><span class=o>=</span><span class=n>n_cores</span><span class=p>)</span> <span class=k>as</span> <span class=n>executor</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>futures</span> <span class=o>=</span> <span class=p>[</span><span class=n>executor</span><span class=o>.</span><span class=n>submit</span><span class=p>(</span><span class=n>process_group</span><span class=p>,</span> <span class=n>name</span><span class=p>,</span> <span class=n>group</span><span class=p>)</span> <span class=k>for</span> <span class=n>name</span><span class=p>,</span> <span class=n>group</span> <span class=ow>in</span> <span class=n>nested_data</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>results</span> <span class=o>=</span> <span class=p>[</span><span class=n>future</span><span class=o>.</span><span class=n>result</span><span class=p>()</span> <span class=k>for</span> <span class=n>future</span> <span class=ow>in</span> <span class=n>futures</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>capm</span> <span class=o>=</span> <span class=n>pd</span><span class=o>.</span><span class=n>concat</span><span class=p>(</span><span class=n>results</span><span class=p>)</span><span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=s2>&#34;coefficient&#34;</span><span class=p>,</span> <span class=s2>&#34;estimate&#34;</span><span class=p>,</span> <span class=s2>&#34;t_statistic&#34;</span><span class=p>])</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=方案3使用duckdb>方案3：使用duckdb</h4><p>略</p><h4 id=保存-beta-数据>保存 beta 数据</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>capm</span><span class=o>.</span><span class=n>query</span><span class=p>(</span><span class=s2>&#34;coefficient == &#39;mkt_excess&#39;&#34;</span><span class=p>)</span><span class=o>.</span><span class=n>rename</span><span class=p>(</span><span class=n>columns</span><span class=o>=</span><span class=p>{</span><span class=s2>&#34;estimate&#34;</span><span class=p>:</span> <span class=s2>&#34;beta&#34;</span><span class=p>})</span><span class=o>.</span><span class=n>get</span><span class=p>([</span><span class=s2>&#34;stock_code&#34;</span><span class=p>,</span> <span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=s2>&#34;beta&#34;</span><span class=p>])</span><span class=o>.</span><span class=n>to_csv</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;capm_</span><span class=si>{</span><span class=n>WINDOW_SIZE</span><span class=si>}</span><span class=s2>.csv&#34;</span><span class=p>,</span> <span class=n>index</span><span class=o>=</span><span class=kc>False</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=可视化分析可选>可视化分析[可选]</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>from</span> <span class=nn>lets_plot</span> <span class=kn>import</span> <span class=o>*</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>plot</span> <span class=o>=</span> <span class=n>ggplot</span><span class=p>(</span><span class=n>capm</span><span class=p>,</span> <span class=n>aes</span><span class=p>(</span><span class=n>x</span><span class=o>=</span><span class=s2>&#34;date&#34;</span><span class=p>,</span> <span class=n>y</span><span class=o>=</span><span class=s2>&#34;estimate&#34;</span><span class=p>,</span> <span class=n>color</span><span class=o>=</span><span class=s2>&#34;stock_name&#34;</span><span class=p>))</span> <span class=o>+</span>\
+</span></span><span class=line><span class=cl>    <span class=n>geom_line</span><span class=p>(</span><span class=n>size</span><span class=o>=</span><span class=mf>1.5</span><span class=p>)</span> <span class=o>+</span>\
+</span></span><span class=line><span class=cl>    <span class=n>labs</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>x</span><span class=o>=</span><span class=s2>&#34;&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>y</span><span class=o>=</span><span class=s2>&#34;&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>color</span><span class=o>=</span><span class=s2>&#34;&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>linetype</span><span class=o>=</span><span class=s2>&#34;&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>title</span><span class=o>=</span><span class=s2>&#34;股票月度贝塔系数估计值(5年滚动窗口数据)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span> <span class=o>+</span>\
+</span></span><span class=line><span class=cl>    <span class=n>ggsize</span><span class=p>(</span><span class=mi>800</span><span class=p>,</span> <span class=mi>600</span><span class=p>)</span> <span class=o>+</span>\
+</span></span><span class=line><span class=cl>    <span class=n>theme</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>legend_position</span><span class=o>=</span><span class=s2>&#34;right&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>plot_margin</span><span class=o>=</span><span class=p>[</span><span class=mi>10</span><span class=p>,</span> <span class=mi>30</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>]</span>  <span class=c1># Add right margin: [top, right, bottom, left]</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>plot</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=参考>参考</h3><p><a class=link href=https://www.tidy-finance.org/python/beta-estimation.html target=_blank rel=noopener>beta-estimation</a></p></section><footer class=article-footer><section class=article-tags><a href=/tags/%E5%9B%A0%E5%AD%90%E6%8A%95%E8%B5%84/>因子投资</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/%E5%8F%8C%E5%9B%A0%E5%AD%90%E6%8E%92%E5%BA%8F%E5%8F%8A%E5%9B%A0%E5%AD%90%E6%9E%84%E5%BB%BA/><div class=article-details><h2 class=article-title>双因子排序及因子构建</h2></div></a></article><article><a href=/p/%E5%9B%A0%E5%AD%90%E6%8A%95%E8%B5%84%E6%A6%82%E8%AE%BA/><div class=article-details><h2 class=article-title>因子投资概论</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2025 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

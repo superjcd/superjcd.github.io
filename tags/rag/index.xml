@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>RAG on superjcd</title><link>https://superjcd.github.io/tags/rag/</link><description>Recent content in RAG on superjcd</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 29 Apr 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://superjcd.github.io/tags/rag/index.xml" rel="self" type="application/rss+xml"/><item><title>RAG进阶技巧</title><link>https://superjcd.github.io/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/</link><pubDate>Mon, 29 Apr 2024 00:00:00 +0000</pubDate><guid>https://superjcd.github.io/p/rag%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7/</guid><description>&lt;p>先简单讲一下什么是RAG(Retrieval-Augmented Generation), 或者说为什么需要RAG。&lt;br>
+LLM的训练数据是基于过去的信息， LLM没有办法回答最新的问题， 比如你没有办法让一个2022年训练的模型回答2023年NBA的冠军归属。&lt;br>
+当然我们可以选择给他喂最新的数据重新训练大模型， 但是这种方式的成本非常高昂。&lt;br>
+如何教&amp;quot;过时&amp;quot;的模型以新知识， 通过RAG， 我们把新的知识灌输或者填充到对话的语境中， 那么LLM通过检索这些新知识， 结合模型原有的理解能力， 他就能够回答自己在训练时没有遇到过的问题。&lt;br>
+本教程我们会使用llamaindex，具体版本信息：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Name: llama-index
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Version: 0.10.31
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Summary: Interface between LLMs and your data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Home-page: https://llamaindex.ai
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Author: Jerry Liu
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Author-email: jerry@llamaindex.ai
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">License: MIT
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="基础rag流程">基础RAG流程
+&lt;/h2>&lt;p>这里我们会使用llama3而不是OpenAI的chatgpt来作为我们的基座模型， 关于如何部署和使用llama3可以参考ollama的&lt;a class="link" href="https://github.com/ollama/ollama" target="_blank" rel="noopener"
+>github文档&lt;/a>：&lt;/p>
+&lt;p>首先， 我们会为我们的RAG应用准备好llm基座和词嵌入模型：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Settings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.llms.ollama&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Ollama&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.embeddings.huggingface&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">HuggingFaceEmbedding&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SimpleDirectoryReader&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">llm&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Ollama&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;llama3&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">request_timeout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">60.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">temperature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">Settings&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">llm&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">llm&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">embed_modle&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">HuggingFaceEmbedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;BAAI/bge-base-en-v1.5&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">Settings&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embed_model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">embed_modle&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;blockquote>
+&lt;p>Settings是全局的配置类， 这样可以免去后续显式输入llm参数以及embed_model参数的过程；这里我们用智源（BAAI）的bge通用模型, 他们的词嵌入模型是比较好的&lt;/p>
+&lt;/blockquote>
+&lt;p>接着我们要加载文档， 并对文档进行分割&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SimpleDirectoryReader&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core.node_parser&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SimpleNodeParser&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">documents&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SimpleDirectoryReader&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_files&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;./data/paul_graham_eassay.txt&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">load_data&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">node_parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SimpleNodeParser&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">chunk_size&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1024&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">nodes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">node_parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_nodes_from_documents&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">documents&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nodes&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>我们读取了data路径下的paul_graham_eassay.txt文档， 并将文档分割成了长度为1024的若干个文档， 这样文档数从原来的1个变成了21个
+打印其中一个文档：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nodes&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>输出：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">(&amp;#39;Node ID: 00886ada-1a64-47ea-9f91-0eb48caf2138\n&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#39;Text: What I Worked On February 2021 Before college the two main\n&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#39;things I worked on, outside of school, were writing and programming. I\n&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;didn&amp;#39;t write essays. I wrote what beginning writers were supposed to\n&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#39;write then, and probably still are: short stories. My stories were\n&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#39;awful. They had hardly any plot, just characters with strong feelings,\n&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#39;whic...&amp;#39;)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>在我正式使用语义进行文档查询之前， 我们需要准备好我们的向量数据库， 可选项有很多， 具体可以参考&lt;a class="link" href="https://docs.llamaindex.ai/en/stable/community/integrations/vector_stores/" target="_blank" rel="noopener"
+>这里&lt;/a>;这里我们使用weaviate(推荐使用docker本地运行weaviate， 具体参考&lt;a class="link" href="https://weaviate.io/developers/weaviate/installation/docker-compose" target="_blank" rel="noopener"
+>这里&lt;/a>, )&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">weaviate&lt;/span> &lt;span class="c1"># v3 version&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">VectorStoreIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">StorageContext&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.vector_stores.weaviate&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">WeaviateVectorStore&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">index_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;MyExternalContext&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">client&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">weaviate&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Client&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;http://localhost:8080&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vector_store&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">WeaviateVectorStore&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">weaviate_client&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">client&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">index_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">index_name&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">storage_context&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">StorageContext&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_defaults&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">vector_store&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">vector_store&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">index&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VectorStoreIndex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">storage_context&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">storage_context&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>接着我使用VectotreStoreIndex作为我们查询引擎来查询文档：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">Question&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;What happened at Interleaf?&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_engine&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">index&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">as_query_engine&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">query_engine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Question&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="前置过程优化----使用sentencewindownodeparser分割文档">前置过程优化 &amp;ndash; 使用SentenceWindowNodeParser分割文档
+&lt;/h2>&lt;p>所谓的前置优化， 就是发生在query之前的优化。&lt;br>
+前面我们使用了&lt;code>SimpleNodeParser&lt;/code>来分割我们的文档， 当时我们把文档分割成了长度为1024的21个文档， 这里的问题在于：当我们进行query的时候， 我们会先定位到这21个文档中的某一个来填充llm的context， 然后通过llm来输出问题；&lt;br>
+很显然， 1024这个长度其实有点太大了，不利于精准定位；但是假设我缩小文档的长度，文档匹配的精度会上升， 但是同时可能导致context的上下文信息变少，也利于输出正确的答案；&lt;br>
+所以我们需要在匹配精度和保证context上下文的基础上进行平衡， 这里我们使用 &lt;code>SentenceWindowNodeParser&lt;/code>来分割文档：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core.node_parser&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SentenceWindowNodeParser&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">node_parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SentenceWindowNodeParser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_defaults&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">window_size&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">window_metadata_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;window&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="c1"># 会成为元数据&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">original_text_metadata_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;original_text&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">nodes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">node_parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_nodes_from_documents&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">documents&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nodes&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vector_store&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">WeaviateVectorStore&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">weaviate_client&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">client&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">index_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">index_name&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">storage_context&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">StorageContext&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_defaults&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">vector_store&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">vector_store&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">index&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VectorStoreIndex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">storage_context&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">storage_context&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># 考虑文&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>同时我们需要去置换&lt;code>as_query_engine&lt;/code>的&lt;code>node_postprocessors&lt;/code>参数&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core.postprocessor&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">MetadataReplacementPostProcessor&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The target key defaults to `window` to match the node_parser&amp;#39;s default&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">postproc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MetadataReplacementPostProcessor&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">target_metadata_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;window&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_engine&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">index&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">as_query_engine&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">node_postprocessors&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">postproc&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">query_engine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Question&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="匹配机制优化--使用hybrid-search">匹配机制优化&amp;ndash;使用Hybrid Search
+&lt;/h2>&lt;p>前面的优化方式， 发生在匹配之前， 我们也可以选择优化匹配算法， 将基于语义（词向量）的方式修改为结合关键词查询&lt;/p>
+&lt;blockquote>
+&lt;p>关键词查询的特点会查找和查询内容更相似的内容， 比如用户搜索apple， 在关键词查询的场景下， 所有带有apple的文档都是目标文档， 不论apple指的是苹果还是手机。 另外假设用户输入的词语发生了拼写错误， 关键词匹配机制也会失效&lt;/p>
+&lt;/blockquote>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_engine&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">index&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">as_query_engine&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">node_postprocessors&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">postproc&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">vector_store_query_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;hybrid&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">alpha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.5&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">query_engine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Question&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>alpha是0-1之间的值，表示关键词匹配的比例， 如果是0的话， 则不使用；&lt;/p>
+&lt;blockquote>
+&lt;p>注意并不是所有向量数据库都支持关键词匹配&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="后置过程优化">后置过程优化
+&lt;/h2>&lt;p>最后， 当我们得到了目标结果， 如果我们想要进步一步优化查询， 那该怎么处理？
+一种方法就是使用reranker从候选文档（比如有6个候选文档）中筛选出1-2个更匹配的文档：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">llama_index.core.postprocessor&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SentenceTransformerRerank&lt;/span> &lt;span class="c1"># 计算相似度&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">rerank&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SentenceTransformerRerank&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">top_n&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;BAAI/bge-reranker-base&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_engine&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">index&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">as_query_engine&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">similarity_top_k&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">6&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">node_postprocessors&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">rerank&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">postproc&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">vector_store_query_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;hybrid&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">alpha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.3&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">query_engine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Question&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="参考">参考
+&lt;/h2>&lt;p>&lt;a class="link" href="https://towardsdatascience.com/retrieval-augmented-generation-rag-from-theory-to-langchain-implementation-4e9bd5f6a4f2" target="_blank" rel="noopener"
+>Retrieval-Augmented Generation (RAG): From Theory to LangChain Implementation&lt;/a>&lt;/p></description></item></channel></rss>

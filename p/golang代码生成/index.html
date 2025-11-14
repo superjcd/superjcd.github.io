@@ -1,0 +1,584 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content='动机 我们经常会看到很多的go语言库会使用go:generate xxx命令来减少一些重复性代码的编写（boilerplate codes）， 但是go:generate命令本身不是达到减轻重复性工作的关键， 关键是上面的xxx(指代任何一种代码生成工具)是如何帮组我们实现代码生成的呢？\n比如, 我们在写gin的controller的时候(MVC架构)， 我们通常会通过如下方式提取http请求对象的参数：\n1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 // controller/controller.go type GetUserParmas struct { Name string `form:"name"` Email string `form:"email"` IsAdmin int `form:"is_admin"` } func (con *Controller) GetUser() gin.HandlerFunc { return func(c *gin.Context) { var rq GetUserParmas if err := c.ShouldBindQuery(&amp;rq); err != nil { response.BadRequest(c, err) return } // } } 对Get请求我们我们会像上面那样调用ShouldBindQuery来解析参数， 问题的关键在于GetUserParams这个表示请求的结构体， 它在结构上其实和User结构体其实是类似的。\n我们在应用MVC的时候， 肯定会定义一些数据的模型， 如果使用gorm这类的ORM工具的话， 会直接借用这些结构体来进行对数据库的操作。但是在定义数据模型的时候， 用的tag可能会类似于:\n1 2 3 4 5 6 //models/users.go type User struct { Name string `gorm:"column:name"` Email string `gorm:"column:email"` IsAdmin int `gorm:"column:is_admin"` } 可以看到User和GetGetUserParams唯一的差别只是它们的tag是不同的而已， 上面演示的只是Get请求解析参数的场景， 如果还有类似的其他场景呢， 比如使用ShouldBindJson, 那么在我们的tag里面就需要加上json标签了， 很显然这个过程是很繁杂的。\n我们希望我们有一个聪明的工具， 可以帮助我们基于User以及其他的结构体， 自动生成生成GetUserParmas之类的代码， 减少重复的工作量.\n'><title>golang代码生成</title>
+<link rel=canonical href=https://superjcd.github.io/p/golang%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/><link rel=stylesheet href=/scss/style.min.0304c6baf04e01a8fe70693791cb744d56a3578a3120a8796cefc66825aa39c7.css><meta property='og:title' content="golang代码生成"><meta property='og:description' content='动机 我们经常会看到很多的go语言库会使用go:generate xxx命令来减少一些重复性代码的编写（boilerplate codes）， 但是go:generate命令本身不是达到减轻重复性工作的关键， 关键是上面的xxx(指代任何一种代码生成工具)是如何帮组我们实现代码生成的呢？\n比如, 我们在写gin的controller的时候(MVC架构)， 我们通常会通过如下方式提取http请求对象的参数：\n1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 // controller/controller.go type GetUserParmas struct { Name string `form:"name"` Email string `form:"email"` IsAdmin int `form:"is_admin"` } func (con *Controller) GetUser() gin.HandlerFunc { return func(c *gin.Context) { var rq GetUserParmas if err := c.ShouldBindQuery(&amp;rq); err != nil { response.BadRequest(c, err) return } // } } 对Get请求我们我们会像上面那样调用ShouldBindQuery来解析参数， 问题的关键在于GetUserParams这个表示请求的结构体， 它在结构上其实和User结构体其实是类似的。\n我们在应用MVC的时候， 肯定会定义一些数据的模型， 如果使用gorm这类的ORM工具的话， 会直接借用这些结构体来进行对数据库的操作。但是在定义数据模型的时候， 用的tag可能会类似于:\n1 2 3 4 5 6 //models/users.go type User struct { Name string `gorm:"column:name"` Email string `gorm:"column:email"` IsAdmin int `gorm:"column:is_admin"` } 可以看到User和GetGetUserParams唯一的差别只是它们的tag是不同的而已， 上面演示的只是Get请求解析参数的场景， 如果还有类似的其他场景呢， 比如使用ShouldBindJson, 那么在我们的tag里面就需要加上json标签了， 很显然这个过程是很繁杂的。\n我们希望我们有一个聪明的工具， 可以帮助我们基于User以及其他的结构体， 自动生成生成GetUserParmas之类的代码， 减少重复的工作量.\n'><meta property='og:url' content='https://superjcd.github.io/p/golang%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/'><meta property='og:site_name' content='superjcd'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='代码生成'><meta property='article:published_time' content='2024-01-29T00:00:00+00:00'><meta property='article:modified_time' content='2024-01-29T00:00:00+00:00'><meta name=twitter:title content="golang代码生成"><meta name=twitter:description content='动机 我们经常会看到很多的go语言库会使用go:generate xxx命令来减少一些重复性代码的编写（boilerplate codes）， 但是go:generate命令本身不是达到减轻重复性工作的关键， 关键是上面的xxx(指代任何一种代码生成工具)是如何帮组我们实现代码生成的呢？\n比如, 我们在写gin的controller的时候(MVC架构)， 我们通常会通过如下方式提取http请求对象的参数：\n1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 // controller/controller.go type GetUserParmas struct { Name string `form:"name"` Email string `form:"email"` IsAdmin int `form:"is_admin"` } func (con *Controller) GetUser() gin.HandlerFunc { return func(c *gin.Context) { var rq GetUserParmas if err := c.ShouldBindQuery(&amp;rq); err != nil { response.BadRequest(c, err) return } // } } 对Get请求我们我们会像上面那样调用ShouldBindQuery来解析参数， 问题的关键在于GetUserParams这个表示请求的结构体， 它在结构上其实和User结构体其实是类似的。\n我们在应用MVC的时候， 肯定会定义一些数据的模型， 如果使用gorm这类的ORM工具的话， 会直接借用这些结构体来进行对数据库的操作。但是在定义数据模型的时候， 用的tag可能会类似于:\n1 2 3 4 5 6 //models/users.go type User struct { Name string `gorm:"column:name"` Email string `gorm:"column:email"` IsAdmin int `gorm:"column:is_admin"` } 可以看到User和GetGetUserParams唯一的差别只是它们的tag是不同的而已， 上面演示的只是Get请求解析参数的场景， 如果还有类似的其他场景呢， 比如使用ShouldBindJson, 那么在我们的tag里面就需要加上json标签了， 很显然这个过程是很繁杂的。\n我们希望我们有一个聪明的工具， 可以帮助我们基于User以及其他的结构体， 自动生成生成GetUserParmas之类的代码， 减少重复的工作量.\n'><link rel="shortcut icon" href=/favicon.ico></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/avatar_hu12125167938935615648.png width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>superjcd</a></h1><h2 class=site-description></h2></div></header><ol class=menu-social><li><a href=https://github.com/superjcd target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#动机>动机</a></li><li><a href=#实现>实现</a><ol><li><a href=#收集结构体>收集结构体</a></li><li><a href=#生成代码>生成代码</a></li></ol></li><li><a href=#牛刀小试>牛刀小试</a></li><li><a href=#reference>Reference</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/golang/>Golang</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/golang%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/>golang代码生成</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Jan 29, 2024</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>6 minute read</time></div></footer></div></header><section class=article-content><h2 id=动机>动机</h2><p>我们经常会看到很多的go语言库会使用<code>go:generate xxx</code>命令来减少一些重复性代码的编写（boilerplate codes）， 但是go:generate命令本身不是达到减轻重复性工作的关键， 关键是上面的xxx(指代任何一种代码生成工具)是如何帮组我们实现代码生成的呢？<br>比如, 我们在写gin的controller的时候(MVC架构)， 我们通常会通过如下方式提取http请求对象的参数：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=c1>// controller/controller.go
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>type</span> <span class=nx>GetUserParmas</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Name</span>     <span class=kt>string</span> <span class=s>`form:&#34;name&#34;`</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Email</span>    <span class=kt>string</span> <span class=s>`form:&#34;email&#34;`</span>
+</span></span><span class=line><span class=cl>	<span class=nx>IsAdmin</span>  <span class=kt>int</span>    <span class=s>`form:&#34;is_admin&#34;`</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>con</span> <span class=o>*</span><span class=nx>Controller</span><span class=p>)</span> <span class=nf>GetUser</span><span class=p>()</span> <span class=nx>gin</span><span class=p>.</span><span class=nx>HandlerFunc</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=kd>func</span><span class=p>(</span><span class=nx>c</span> <span class=o>*</span><span class=nx>gin</span><span class=p>.</span><span class=nx>Context</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>var</span> <span class=nx>rq</span> <span class=nx>GetUserParmas</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>c</span><span class=p>.</span><span class=nf>ShouldBindQuery</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>rq</span><span class=p>);</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>response</span><span class=p>.</span><span class=nf>BadRequest</span><span class=p>(</span><span class=nx>c</span><span class=p>,</span> <span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=c1>// 
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>对Get请求我们我们会像上面那样调用<code>ShouldBindQuery</code>来解析参数， 问题的关键在于<code>GetUserParams</code>这个表示请求的结构体， 它在结构上其实和<code>User</code>结构体其实是类似的。<br>我们在应用MVC的时候， 肯定会定义一些数据的模型， 如果使用gorm这类的ORM工具的话， 会直接借用这些结构体来进行对数据库的操作。但是在定义数据模型的时候， 用的tag可能会类似于:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=c1>//models/users.go
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>type</span> <span class=nx>User</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Name</span>     <span class=kt>string</span> <span class=s>`gorm:&#34;column:name&#34;`</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Email</span>    <span class=kt>string</span> <span class=s>`gorm:&#34;column:email&#34;`</span>
+</span></span><span class=line><span class=cl>	<span class=nx>IsAdmin</span>  <span class=kt>int</span>    <span class=s>`gorm:&#34;column:is_admin&#34;`</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>可以看到<code>User</code>和<code>GetGetUserParams</code>唯一的差别只是它们的tag是不同的而已， 上面演示的只是Get请求解析参数的场景， 如果还有类似的其他场景呢， 比如使用<code>ShouldBindJson</code>, 那么在我们的tag里面就需要加上json标签了， 很显然这个过程是很繁杂的。<br>我们希望我们有一个聪明的工具， 可以帮助我们基于<code>User</code>以及其他的结构体， 自动生成生成<code>GetUserParmas</code>之类的代码， 减少重复的工作量.</p><h2 id=实现>实现</h2><p>实现的步骤大概分为：</p><ul><li>收集结构体</li><li>生成代码</li></ul><h3 id=收集结构体>收集结构体</h3><p>首先我们需要收集到所有的结构体的相关信息，意味着需要知道结构体的名称， 结构体的字段， 字段类型， 字段标签等等， 譬如上面的<code>User</code>结构体中个字段信息。实现这个目标的方法大体上会有两种：</p><ul><li>反射</li><li>将代码解析成抽象语法树然后遍历</li></ul><p>我们这里会使用第二种方法达到我们的目的。因为几乎所有的语言都会提供将源代码解析为目标语言AST树（抽象语法树）的工具， golang也不例外， golang的<code>go/parser</code>包中的<code>ParseFile</code>方法会将源码解析成AST树</p><blockquote><p>严格来讲， 使用正则表达式之类的方法应该也是可以的， 因为Parse代码的过程本身，通常也会包含某种形式的正则表达式来实现所谓的词法分析（lexical analyze）</p></blockquote><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=nx>fset</span> <span class=o>:=</span> <span class=nx>token</span><span class=p>.</span><span class=nf>NewFileSet</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>var</span> <span class=nx>contents</span> <span class=kd>interface</span><span class=p>{}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nx>node</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>parser</span><span class=p>.</span><span class=nf>ParseFile</span><span class=p>(</span><span class=nx>fset</span><span class=p>,</span> <span class=nx>file</span><span class=p>,</span> <span class=nx>contents</span><span class=p>,</span> <span class=nx>parser</span><span class=p>.</span><span class=nx>ParseComments</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>上面的file是一个源码文件名称，ParseFile会读取并把代码解析为ast.File对象， 也就是上面的node。</p><p>接着我们会沿着ast.File这棵语法树进行遍历， 找到我们需要的结构体对象：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=nx>structs</span> <span class=o>:=</span> <span class=nf>collectStructs</span><span class=p>(</span><span class=nx>node</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>structType</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>name</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>node</span> <span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>StructType</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>collectStructs</span><span class=p>(</span><span class=nx>node</span> <span class=nx>ast</span><span class=p>.</span><span class=nx>Node</span><span class=p>)</span> <span class=p>[]</span><span class=o>*</span><span class=nx>structType</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>structs</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>([]</span><span class=o>*</span><span class=nx>structType</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>collectStructs</span> <span class=o>:=</span> <span class=kd>func</span><span class=p>(</span><span class=nx>n</span> <span class=nx>ast</span><span class=p>.</span><span class=nx>Node</span><span class=p>)</span> <span class=kt>bool</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>var</span> <span class=nx>t</span> <span class=nx>ast</span><span class=p>.</span><span class=nx>Expr</span>
+</span></span><span class=line><span class=cl>		<span class=kd>var</span> <span class=nx>structName</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>switch</span> <span class=nx>x</span> <span class=o>:=</span> <span class=nx>n</span><span class=p>.(</span><span class=kd>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>TypeSpec</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Type</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>return</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=nx>structName</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Name</span><span class=p>.</span><span class=nx>Name</span>
+</span></span><span class=line><span class=cl>			<span class=nx>t</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Type</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>CompositeLit</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>			<span class=nx>t</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Type</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>ValueSpec</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>			<span class=nx>structName</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Names</span><span class=p>[</span><span class=mi>0</span><span class=p>].</span><span class=nx>Name</span>
+</span></span><span class=line><span class=cl>			<span class=nx>t</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Type</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>Field</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>x</span><span class=p>.</span><span class=nx>Names</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>structName</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Names</span><span class=p>[</span><span class=mi>0</span><span class=p>].</span><span class=nx>Name</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=nx>t</span> <span class=p>=</span> <span class=nx>x</span><span class=p>.</span><span class=nx>Type</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>t</span> <span class=p>=</span> <span class=nf>deref</span><span class=p>(</span><span class=nx>t</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>x</span><span class=p>,</span> <span class=nx>ok</span> <span class=o>:=</span> <span class=nx>t</span><span class=p>.(</span><span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>StructType</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=p>!</span><span class=nx>ok</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>structs</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>structs</span><span class=p>,</span> <span class=o>&amp;</span><span class=nx>structType</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>name</span><span class=p>:</span> <span class=nx>structName</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>			<span class=nx>node</span><span class=p>:</span> <span class=nx>x</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=p>})</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>ast</span><span class=p>.</span><span class=nf>Inspect</span><span class=p>(</span><span class=nx>node</span><span class=p>,</span> <span class=nx>collectStructs</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>structs</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>collectStructs的核心其实是通过ast.Inspect方法进行遍历AST树， 它的第二个参数是一个参数为ast.Node的回调函数， 回调函数如果返回true， 会继续遍历。<br>上面的代码会遍历AST树的所有节点Node， 然后将目标对象ast.StructType收集起来返回; 注意, 我们这里其实自定义了一个structType对象， 原因在于ast.StructType没有包含结构体名称的字段， 而结构体名称后续是需要用到的</p><blockquote><p>collectStructs函数参考了https://github.com/fatih/gomodifytags中的实现</p></blockquote><p>这里稍微插播一下ast.Inspect的实现：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=kd>func</span> <span class=nf>Inspect</span><span class=p>(</span><span class=nx>node</span> <span class=nx>Node</span><span class=p>,</span> <span class=nx>f</span> <span class=kd>func</span><span class=p>(</span><span class=nx>Node</span><span class=p>)</span> <span class=kt>bool</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nf>Walk</span><span class=p>(</span><span class=nf>inspector</span><span class=p>(</span><span class=nx>f</span><span class=p>),</span> <span class=nx>node</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span> <span class=nx>Visitor</span><span class=p>,</span> <span class=nx>node</span> <span class=nx>Node</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>v</span> <span class=p>=</span> <span class=nx>v</span><span class=p>.</span><span class=nf>Visit</span><span class=p>(</span><span class=nx>node</span><span class=p>);</span> <span class=nx>v</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=c1>// walk children
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=c1>// (the order of the cases matches the order
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=c1>// of the corresponding node types in ast.go)
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>switch</span> <span class=nx>n</span> <span class=o>:=</span> <span class=nx>node</span><span class=p>.(</span><span class=kd>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// Comments and fields
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>case</span> <span class=o>*</span><span class=nx>Comment</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// nothing to do
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=o>*</span><span class=nx>CommentGroup</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>c</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>n</span><span class=p>.</span><span class=nx>List</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>c</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=o>*</span><span class=nx>Field</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Doc</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Doc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nf>walkIdentList</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Names</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Type</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Type</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Tag</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Tag</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Comment</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Comment</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=o>*</span><span class=nx>FieldList</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>f</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>n</span><span class=p>.</span><span class=nx>List</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>f</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=err>（</span><span class=nx>中间略</span><span class=err>）</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    	<span class=c1>// Files and packages
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>case</span> <span class=o>*</span><span class=nx>File</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Doc</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Doc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Name</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=nf>walkDeclList</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Decls</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// don&#39;t walk n.Comments - they have been
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=c1>// visited already through the individual
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=c1>// nodes
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>	<span class=k>case</span> <span class=o>*</span><span class=nx>Package</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>f</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>n</span><span class=p>.</span><span class=nx>Files</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nf>Walk</span><span class=p>(</span><span class=nx>v</span><span class=p>,</span> <span class=nx>f</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>default</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>		<span class=nb>panic</span><span class=p>(</span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;ast.Walk: unexpected node type %T&#34;</span><span class=p>,</span> <span class=nx>n</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这里使用了递归下降的方法去遍历整棵树，通过对节点类型的判断， 使用不同的方法(Walk, walkDeclList等)来更深一步地进行递归调用。</p><p>当我们收集完了所有结构体之后， 为了方便后续的代码生成环节， 我们这里对收集的结构体进行进一步的挖掘， 获取结构体中的字段名称、类型、Tag等信息：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=nx>components</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>collectStructComponents</span><span class=p>(</span><span class=nx>structs</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>collectStructComponents</span><span class=p>(</span><span class=nx>structs</span> <span class=p>[]</span><span class=o>*</span><span class=nx>structType</span><span class=p>)</span> <span class=p>(</span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=nx>structComponets</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>result</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>(</span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=nx>structComponets</span><span class=p>,</span> <span class=nb>len</span><span class=p>(</span><span class=nx>structs</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>s</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>structs</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>sc</span> <span class=o>:=</span> <span class=nx>structComponets</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>Name</span><span class=p>:</span> <span class=nx>s</span><span class=p>.</span><span class=nx>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>fieldNames</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>([]</span><span class=kt>string</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=nx>fieldTypes</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>([]</span><span class=kt>string</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=nx>fieldTags</span> <span class=o>:=</span> <span class=nb>make</span><span class=p>([]</span><span class=kt>string</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>f</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>s</span><span class=p>.</span><span class=nx>node</span><span class=p>.</span><span class=nx>Fields</span><span class=p>.</span><span class=nx>List</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>fieldName</span> <span class=o>:=</span> <span class=s>&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nb>len</span><span class=p>(</span><span class=nx>f</span><span class=p>.</span><span class=nx>Names</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>field</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Names</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>					<span class=nx>fieldName</span> <span class=p>=</span> <span class=nx>field</span><span class=p>.</span><span class=nx>Name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>				<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Names</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>ident</span><span class=p>,</span> <span class=nx>ok</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Type</span><span class=p>.(</span><span class=o>*</span><span class=nx>ast</span><span class=p>.</span><span class=nx>Ident</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>				<span class=k>if</span> <span class=p>!</span><span class=nx>ok</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>					<span class=k>continue</span>
+</span></span><span class=line><span class=cl>				<span class=p>}</span>
+</span></span><span class=line><span class=cl>				<span class=nx>fieldName</span> <span class=p>=</span> <span class=nx>ident</span><span class=p>.</span><span class=nx>Name</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>fieldName</span> <span class=o>==</span> <span class=s>&#34;&#34;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>continue</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Tag</span> <span class=o>==</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>f</span><span class=p>.</span><span class=nx>Tag</span> <span class=p>=</span> <span class=o>&amp;</span><span class=nx>ast</span><span class=p>.</span><span class=nx>BasicLit</span><span class=p>{}</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=nx>fieldNames</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>fieldNames</span><span class=p>,</span> <span class=nx>fieldName</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=c1>// add Types
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=nx>typeExpr</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Type</span>
+</span></span><span class=line><span class=cl>			<span class=nx>typeString</span> <span class=o>:=</span> <span class=nx>types</span><span class=p>.</span><span class=nf>ExprString</span><span class=p>(</span><span class=nx>typeExpr</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=nx>fieldTypes</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>fieldTypes</span><span class=p>,</span> <span class=nx>typeString</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=c1>// add Tags
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=nx>tagExpr</span> <span class=o>:=</span> <span class=nx>f</span><span class=p>.</span><span class=nx>Tag</span>
+</span></span><span class=line><span class=cl>			<span class=nx>tagString</span> <span class=o>:=</span> <span class=nx>types</span><span class=p>.</span><span class=nf>ExprString</span><span class=p>(</span><span class=nx>tagExpr</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=nx>fieldTags</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>fieldTags</span><span class=p>,</span> <span class=nx>tagString</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>sc</span><span class=p>.</span><span class=nx>FieldNames</span> <span class=p>=</span> <span class=nx>fieldNames</span>
+</span></span><span class=line><span class=cl>		<span class=nx>sc</span><span class=p>.</span><span class=nx>FieldTypes</span> <span class=p>=</span> <span class=nx>fieldTypes</span>
+</span></span><span class=line><span class=cl>		<span class=nx>sc</span><span class=p>.</span><span class=nx>FieldTags</span> <span class=p>=</span> <span class=nx>fieldTags</span>
+</span></span><span class=line><span class=cl>		<span class=nx>result</span><span class=p>[</span><span class=nx>sc</span><span class=p>.</span><span class=nx>Name</span><span class=p>]</span> <span class=p>=</span> <span class=nx>sc</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>result</span><span class=p>,</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>代码整体比较简单， 就是遍历StructType的Fields.List来获取每个结构体字段的详细信息， 最后汇总成一个字典。</p><h3 id=生成代码>生成代码</h3><p>当我们有了所需的结构体信息之后， 生成代码就是一件非常水到渠成的事情; 这里我们会使用golang自带template包来实现代码生成</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=nf>genCode</span><span class=p>(</span><span class=nx>file</span><span class=p>,</span> <span class=nx>components</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>genCode</span><span class=p>(</span><span class=nx>file</span> <span class=kt>string</span><span class=p>,</span> <span class=nx>scm</span> <span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=nx>structComponets</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>fileName</span> <span class=o>:=</span> <span class=nx>strings</span><span class=p>.</span><span class=nf>TrimRight</span><span class=p>(</span><span class=nx>file</span><span class=p>,</span> <span class=s>&#34;.go&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>src</span> <span class=o>:=</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;package %s&#34;</span><span class=p>,</span> <span class=nx>pkgName</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>_</span><span class=p>,</span> <span class=nx>v</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>scm</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>forms</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>genForm</span><span class=p>(</span><span class=nx>v</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>src</span> <span class=o>+=</span> <span class=s>&#34;\n&#34;</span> <span class=o>+</span> <span class=nx>forms</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=nx>jsons</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nf>genJson</span><span class=p>(</span><span class=nx>v</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>src</span> <span class=o>+=</span> <span class=s>&#34;\n&#34;</span> <span class=o>+</span> <span class=nx>jsons</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>finalSrc</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>format</span><span class=p>.</span><span class=nf>Source</span><span class=p>([]</span><span class=nb>byte</span><span class=p>(</span><span class=nx>src</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=c1>// fmt.Println(string(finalSrc))
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=nx>outFile</span> <span class=o>:=</span> <span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;%s_param.go&#34;</span><span class=p>,</span> <span class=nx>fileName</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>os</span><span class=p>.</span><span class=nf>WriteFile</span><span class=p>(</span><span class=nx>outFile</span><span class=p>,</span> <span class=nx>finalSrc</span><span class=p>,</span> <span class=mo>0644</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>genCode</code>会遍历我们上一步获取的字典， 然后调用<code>genForm</code>和<code>genJson</code>生成我们想要得到的目标代码:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=kd>func</span> <span class=nf>ToSnakeCase</span><span class=p>(</span><span class=nx>str</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>string</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>snake</span> <span class=o>:=</span> <span class=nx>matchFirstCap</span><span class=p>.</span><span class=nf>ReplaceAllString</span><span class=p>(</span><span class=nx>str</span><span class=p>,</span> <span class=s>&#34;${1}_${2}&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>snake</span> <span class=p>=</span> <span class=nx>matchAllCap</span><span class=p>.</span><span class=nf>ReplaceAllString</span><span class=p>(</span><span class=nx>snake</span><span class=p>,</span> <span class=s>&#34;${1}_${2}&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>strings</span><span class=p>.</span><span class=nf>ToLower</span><span class=p>(</span><span class=nx>snake</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>var</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>	<span class=nx>matchFirstCap</span> <span class=p>=</span> <span class=nx>regexp</span><span class=p>.</span><span class=nf>MustCompile</span><span class=p>(</span><span class=s>&#34;(.)([A-Z][a-z]+)&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>matchAllCap</span>   <span class=p>=</span> <span class=nx>regexp</span><span class=p>.</span><span class=nf>MustCompile</span><span class=p>(</span><span class=s>&#34;([a-z0-9])([A-Z])&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>funcMap</span>       <span class=p>=</span> <span class=nx>template</span><span class=p>.</span><span class=nx>FuncMap</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=s>&#34;ToLower&#34;</span><span class=p>:</span> <span class=nx>strings</span><span class=p>.</span><span class=nx>ToLower</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=s>&#34;ToSnake&#34;</span><span class=p>:</span> <span class=nx>ToSnakeCase</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>genForm</span><span class=p>(</span><span class=nx>sc</span> <span class=nx>structComponets</span><span class=p>)</span> <span class=p>(</span><span class=kt>string</span><span class=p>,</span> <span class=kt>error</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>tempString</span> <span class=o>:=</span> <span class=s>`
+</span></span></span><span class=line><span class=cl><span class=s>	type </span><span class=cp>{{</span><span class=na>.Name</span><span class=cp>}}</span><span class=s>Form struct {
+</span></span></span><span class=line><span class=cl><span class=s>		 </span><span class=cp>{{</span><span class=k>range</span><span class=w> </span><span class=nx>$i</span><span class=o>,</span><span class=w> </span><span class=nx>$e</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=na>.FieldNames</span><span class=cp>}}</span><span class=s> 
+</span></span></span><span class=line><span class=cl><span class=s>		    </span><span class=cp>{{</span><span class=nx>$e</span><span class=cp>}}</span><span class=s>	</span><span class=cp>{{</span><span class=k>index</span><span class=w> </span><span class=na>$.FieldTypes</span><span class=w> </span><span class=nx>$i</span><span class=cp>}}</span><span class=s>`</span> <span class=o>+</span> <span class=s>&#34;   `form:\&#34;{{$e|ToSnake}}\&#34;`&#34;</span> <span class=o>+</span> <span class=s>`</span><span class=cp>{{</span><span class=k>end</span><span class=cp>}}</span><span class=s>`</span> <span class=o>+</span> <span class=s>`
+</span></span></span><span class=line><span class=cl><span class=s>			}`</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>temp</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>template</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=s>&#34;controller&#34;</span><span class=p>).</span><span class=nf>Funcs</span><span class=p>(</span><span class=nx>funcMap</span><span class=p>).</span><span class=nf>Parse</span><span class=p>(</span><span class=nx>tempString</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>buff</span> <span class=o>:=</span> <span class=nx>bytes</span><span class=p>.</span><span class=nf>NewBufferString</span><span class=p>(</span><span class=s>&#34;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=nx>err</span> <span class=p>=</span> <span class=nx>temp</span><span class=p>.</span><span class=nf>Execute</span><span class=p>(</span><span class=nx>buff</span><span class=p>,</span> <span class=nx>sc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=nx>buff</span><span class=p>.</span><span class=nf>String</span><span class=p>(),</span> <span class=kc>nil</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>上面以genForm为例， 我们使用template的Excute方法将Struct中的诸多信息注入到了代码模板中</p><h2 id=牛刀小试>牛刀小试</h2><p>上面的代码我已上传至<a class=link href=https://github.com/superjcd/paramgen target=_blank rel=noopener>github</a>， 我们可以下载下来使用一下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>go install github.com/superjcd/paramgen
+</span></span></code></pre></td></tr></table></div></div><p>然后我们在目标文件的最上方(譬如下面这样)， 添加<code>//go:generate paramgen</code></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=c1>//go:generate  paramgen
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kn>package</span> <span class=nx>model</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>type</span> <span class=nx>User</span> <span class=kd>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>gorm</span><span class=p>.</span><span class=nx>Model</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Name</span>     <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Password</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>Email</span>    <span class=kt>string</span>
+</span></span><span class=line><span class=cl>	<span class=nx>IsAdmin</span>  <span class=kt>int</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>然后再根目录的终端运行：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>go generate ./...
+</span></span></code></pre></td></tr></table></div></div><p>然后就会看到上面文件的旁边新生成了后缀<code>_param</code>的go文件.</p><h2 id=reference>Reference</h2><ul><li><a class=link href=https://arslan.io/2017/09/14/the-ultimate-guide-to-writing-a-go-tool/ target=_blank rel=noopener>the-ultimate-guide-to-writing-a-go-tool</a></li><li><a class=link href=https://yushuangqi.com/blog/2017/go-command-generate.html target=_blank rel=noopener>go-command-generate</a></li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/>代码生成</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/golang%E5%88%86%E5%B8%83%E5%BC%8F%E7%88%AC%E8%99%AB%E8%AE%BE%E8%AE%A1/><div class=article-details><h2 class=article-title>golang分布式爬虫设计</h2></div></a></article></div></div></aside><div id=gitalk-container></div><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.css><script src=https://cdn.jsdelivr.net/npm/gitalk@1.7.2/dist/gitalk.min.js></script><script src=https://cdn.jsdelivr.net/npm/blueimp-md5@2.18.0/js/md5.min.js></script><script>const gitalk=new Gitalk({clientID:"4cde8442733ac793019a",clientSecret:"06b853952b0075feb92709fa5e11392338d176d9",repo:"comments",owner:"superjcd",admin:["superjcd"],distractionFreeMode:!1,id:md5(location.pathname)});(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("gitalk-container").innerHTML="Gitalk comments not available by default when the website is previewed locally.";return}gitalk.render("gitalk-container")})()</script><footer class=site-footer><section class=copyright>&copy;
+2020 -
+2025 superjcd</section><section class=powerby>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.26.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
