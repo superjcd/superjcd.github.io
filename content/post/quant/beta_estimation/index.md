@@ -11,7 +11,7 @@ draft: false
 categories:
     - 量化
 tags:
-    - beta估计
+    - 因子投资
 weight: 1 
 ---
 ## 概要
